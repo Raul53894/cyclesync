@@ -83,6 +83,13 @@
         <h2 id="block-break-heading">Block Complete!</h2>
         <p class="status">Waiting for host to continue...</p>
         <button id="continue-btn" class="hidden" onclick="continueWorkout()">Continue</button>
+        <div class="emoji-bar" style="margin-top:24px;">
+            <button class="emoji-btn" onclick="sendEmote('👍')">👍</button>
+            <button class="emoji-btn" onclick="sendEmote('🥵')">🥵</button>
+            <button class="emoji-btn" onclick="sendEmote('🤘')">🤘</button>
+            <button class="emoji-btn" onclick="sendEmote('🙌')">🙌</button>
+            <button class="emoji-btn" onclick="sendEmote('😝')">😝</button>
+        </div>
     </div>
 
     <!-- Complete -->
@@ -166,7 +173,7 @@
 
             // Track stats
             if (data.index === 0) sessionStartTime = Date.now();
-            completedIntervals.push({ label: data.label, effort: data.effort, duration: data.duration });
+            completedIntervals.push({ label: data.label, effort: data.effort, duration: data.duration, block: data.block ?? 0 });
 
             if (role === 'host') {
                 document.getElementById('host-controls').classList.remove('hidden');
@@ -292,31 +299,54 @@
         const totalSecs = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
         const mins = Math.floor(totalSecs / 60);
         const secs = String(totalSecs % 60).padStart(2, '0');
+
+        // Group intervals by block
+        const blockGroups = [];
+        let lastBlock = -1;
+        for (const iv of completedIntervals) {
+            if (iv.block !== lastBlock) { blockGroups.push([]); lastBlock = iv.block; }
+            blockGroups[blockGroups.length - 1].push(iv);
+        }
+
+        // Build block-separated bar chart
+        const W = 420, H = 100, BLOCK_GAP = 14, BAR_GAP = 3;
         const n = completedIntervals.length;
-        const W = 420, H = 100;
-        const barW = n > 0 ? Math.max(4, Math.min(32, (W - 20) / n - 3)) : 0;
-        const step = n > 1 ? (W - 20 - barW) / (n - 1) : 0;
+        const numBlocks = blockGroups.length;
+        const totalGap = (numBlocks - 1) * BLOCK_GAP;
+        const barW = n > 0 ? Math.max(4, Math.min(32, (W - 20 - totalGap) / n - BAR_GAP)) : 0;
 
-        const bars = completedIntervals.map((iv, i) => {
-            const barH = (iv.effort / 100) * H;
-            const x = 10 + i * step;
-            const y = H - barH;
-            const hue = Math.round(120 - (iv.effort / 100) * 120);
-            return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW}" height="${barH.toFixed(1)}" rx="3" fill="hsl(${hue},85%,50%)"/>`;
+        const rects = [];
+        let x = 10;
+        blockGroups.forEach((group, bi) => {
+            group.forEach(iv => {
+                const barH = (iv.effort / 100) * H;
+                const hue = Math.round(120 - (iv.effort / 100) * 120);
+                rects.push(`<rect x="${x.toFixed(1)}" y="${(H - barH).toFixed(1)}" width="${barW}" height="${barH.toFixed(1)}" rx="3" fill="hsl(${hue},85%,50%)"/>`);
+                x += barW + BAR_GAP;
+            });
+            if (bi < numBlocks - 1) x += BLOCK_GAP;
+        });
+
+        const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:12px 0;">${rects.join('')}</svg>`;
+
+        // Interval list with block headings
+        const listRows = blockGroups.map((group, bi) => {
+            const header = numBlocks > 1
+                ? `<li class="stats-block-header"><span>Block ${bi + 1}</span></li>`
+                : '';
+            const rows = group.map(iv =>
+                `<li><span>${iv.label}</span><span><span>${iv.effort}%</span><span>${iv.duration}s</span></span></li>`
+            ).join('');
+            return header + rows;
         }).join('');
-
-        const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:12px 0;">${bars}</svg>`;
-
-        const listItems = completedIntervals.map(iv =>
-            `<li><span>${iv.label}</span><span>${iv.effort}% · ${iv.duration}s</span></li>`
-        ).join('');
 
         document.getElementById('stats-container').innerHTML = `
             <div class="stats-section">
                 <div class="stats-label">Effort Over Time</div>
                 ${svg}
                 <div class="stats-label" style="margin-top:16px;">Intervals</div>
-                <ul class="stats-list">${listItems}</ul>
+                <li class="stats-list-heading"><span>Interval</span><span><span>Effort</span><span>Time</span></span></li>
+                <ul class="stats-list">${listRows}</ul>
                 <div class="stats-total">Total time: ${mins}m ${secs}s</div>
             </div>`;
     }

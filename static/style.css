@@ -418,8 +418,40 @@ button.danger:active {
 .stats-list li:last-child { border-bottom: none; }
 
 .stats-list li span:last-child {
+    display: flex;
+    gap: 16px;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+}
+
+.stats-list-heading {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid #2a2a2a;
+    margin-bottom: 2px;
+}
+
+.stats-list-heading span:last-child {
+    display: flex;
+    gap: 16px;
+}
+
+.stats-block-header {
+    display: list-item;
+    list-style: none;
+    padding: 8px 0 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--green);
+    border-bottom: none !important;
 }
 
 .stats-total {

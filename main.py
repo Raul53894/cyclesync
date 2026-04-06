@@ -184,6 +184,7 @@ async def run_workout(session):
                 "duration": duration,
                 "rep": iv.get("rep", 1),
                 "totalReps": iv.get("totalReps", 1),
+                "block": iv.get("block", 0),
             }
             session["current_interval"] = interval_msg
             session["last_tick"] = None
