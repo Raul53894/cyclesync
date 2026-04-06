@@ -10,6 +10,13 @@
 <div class="card">
     <h1>CycleSync</h1>
 
+    <!-- Name entry (used when joining via shared link) -->
+    <div id="name-entry" class="hidden">
+        <h2>Enter your name to join</h2>
+        <input type="text" id="name-input" placeholder="Your name" maxlength="30">
+        <button onclick="submitName()">Join Session</button>
+    </div>
+
     <!-- Lobby (waiting) -->
     <div id="lobby">
         <p>Session: <strong id="lobby-code"></strong></p>
@@ -72,19 +79,43 @@
 <script>
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
-    const name = params.get('name');
+    let name = params.get('name');
     const role = params.get('role') || 'attendee';
     let isPaused = false;
     let currentDuration = 60;
     const CIRCUMFERENCE = 565.5;
     let participantsExpanded = false;
+    let ws;
 
     document.getElementById('lobby-code').textContent = code;
 
-    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/${role}`);
+    function connect() {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/${role}`);
+        ws.onmessage = handleMessage;
+    }
 
-    ws.onmessage = (event) => {
+    if (!name) {
+        document.getElementById('lobby').classList.add('hidden');
+        document.getElementById('name-entry').classList.remove('hidden');
+    } else {
+        connect();
+    }
+
+    function submitName() {
+        const input = document.getElementById('name-input').value.trim();
+        if (!input) return alert('Please enter your name');
+        name = input;
+        document.getElementById('name-entry').classList.add('hidden');
+        document.getElementById('lobby').classList.remove('hidden');
+        connect();
+    }
+
+    document.getElementById('name-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitName();
+    });
+
+    function handleMessage(event) {
         const data = JSON.parse(event.data);
 
         if (data.type === 'participants') {
@@ -161,7 +192,7 @@
             alert(data.message);
             window.location.href = '/';
         }
-    };
+    }
 
     function setPaused(paused) {
         isPaused = paused;
