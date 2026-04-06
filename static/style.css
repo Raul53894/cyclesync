@@ -109,6 +109,18 @@ button.secondary:hover { background: #444; }
 .status { color: #888; font-size: 0.9rem; margin-top: 16px; }
 .hidden { display: none; }
 
+.paused-badge {
+    display: inline-block;
+    background: #555;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+}
+
 .interval-row {
     display: flex;
     gap: 8px;

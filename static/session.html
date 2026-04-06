@@ -23,11 +23,20 @@
     <div id="workout" class="hidden">
         <div class="interval-label" id="interval-label"></div>
         <div class="effort-label" id="effort-label"></div>
+        <div id="paused-badge" class="paused-badge hidden">PAUSED</div>
         <div class="timer-ring" id="timer">0:00</div>
         <div class="progress-bar-bg">
             <div class="progress-bar" id="progress-bar" style="width:100%"></div>
         </div>
         <p class="status" id="interval-counter"></p>
+
+        <!-- Host-only controls -->
+        <div id="host-controls" class="hidden" style="margin-top: 24px;">
+            <div style="display:flex; gap:8px;">
+                <button id="pause-btn" onclick="togglePause()" style="flex:1;">Pause</button>
+                <button onclick="endWorkout()" style="flex:1; background:#dc2626;">End Workout</button>
+            </div>
+        </div>
     </div>
 
     <!-- Complete -->
@@ -43,6 +52,7 @@
     const code = params.get('code');
     const name = params.get('name');
     const role = params.get('role') || 'attendee';
+    let isPaused = false;
 
     document.getElementById('lobby-code').textContent = code;
 
@@ -61,16 +71,22 @@
             document.getElementById('lobby').classList.add('hidden');
             document.getElementById('workout').classList.remove('hidden');
 
+            // Show host controls only for the host
+            if (role === 'host') {
+                document.getElementById('host-controls').classList.remove('hidden');
+            }
+
             const repInfo = data.totalReps > 1
-                ? ` &mdash; Rep ${data.rep} of ${data.totalReps}`
+                ? ` — Rep ${data.rep} of ${data.totalReps}`
                 : '';
 
-            document.getElementById('interval-label').innerHTML =
+            document.getElementById('interval-label').textContent =
                 `Interval ${data.index + 1} of ${data.total}${repInfo}`;
             document.getElementById('effort-label').textContent =
-                `${data.label} &mdash; ${data.effort}% Effort`;
-            document.getElementById('effort-label').textContent =
                 `${data.label} — ${data.effort}% Effort`;
+
+            // Clear paused state on new interval
+            setPaused(false);
         }
 
         if (data.type === 'tick') {
@@ -80,6 +96,14 @@
 
             const pct = (data.remaining / data.duration) * 100;
             document.getElementById('progress-bar').style.width = `${pct}%`;
+        }
+
+        if (data.type === 'paused') {
+            setPaused(true);
+        }
+
+        if (data.type === 'resumed') {
+            setPaused(false);
         }
 
         if (data.type === 'workout_complete') {
@@ -92,6 +116,25 @@
             window.location.href = '/';
         }
     };
+
+    function setPaused(paused) {
+        isPaused = paused;
+        document.getElementById('paused-badge').classList.toggle('hidden', !paused);
+        document.getElementById('progress-bar').style.background = paused ? '#555' : '#f97316';
+        if (role === 'host') {
+            document.getElementById('pause-btn').textContent = paused ? 'Resume' : 'Pause';
+        }
+    }
+
+    function togglePause() {
+        ws.send(JSON.stringify({ type: isPaused ? 'resume' : 'pause' }));
+    }
+
+    function endWorkout() {
+        if (confirm('End the workout for everyone?')) {
+            ws.send(JSON.stringify({ type: 'end' }));
+        }
+    }
 </script>
 </body>
 </html>

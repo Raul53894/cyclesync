@@ -38,6 +38,8 @@ async def create_session():
         "names": {},            # websocket id -> name
         "workout": [],          # list of intervals
         "started": False,
+        "pause_event": None,    # asyncio.Event — set=running, clear=paused
+        "ended": False,
     }
     return {"code": code}
 
@@ -73,7 +75,30 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
             # Host starts the workout
             elif data["type"] == "start_workout":
                 session["started"] = True
+                session["ended"] = False
+                session["pause_event"] = asyncio.Event()
+                session["pause_event"].set()  # start in running state
                 asyncio.create_task(run_workout(session))
+
+            # Host pauses the workout
+            elif data["type"] == "pause":
+                if session.get("pause_event"):
+                    session["pause_event"].clear()
+                    await broadcast(session, {"type": "paused"})
+
+            # Host resumes the workout
+            elif data["type"] == "resume":
+                if session.get("pause_event"):
+                    session["pause_event"].set()
+                    await broadcast(session, {"type": "resumed"})
+
+            # Host ends the workout early
+            elif data["type"] == "end":
+                session["ended"] = True
+                if session.get("pause_event"):
+                    session["pause_event"].set()  # unblock if currently paused
+                session["started"] = False
+                await broadcast(session, {"type": "workout_complete"})
 
     except WebSocketDisconnect:
         session["clients"].remove(websocket)
@@ -97,6 +122,9 @@ async def run_workout(session):
     total = len(intervals)
 
     for i, interval in enumerate(intervals):
+        if session.get("ended"):
+            return
+
         duration = interval["duration"]  # seconds
         label = interval["label"]
         effort = interval["effort"]
@@ -115,6 +143,15 @@ async def run_workout(session):
 
         # Count down
         for remaining in range(duration, 0, -1):
+            if session.get("ended"):
+                return
+
+            # Block here while paused
+            await session["pause_event"].wait()
+
+            if session.get("ended"):
+                return
+
             await broadcast(session, {
                 "type": "tick",
                 "remaining": remaining,
@@ -122,6 +159,7 @@ async def run_workout(session):
             })
             await asyncio.sleep(1)
 
-    # Workout complete
-    await broadcast(session, {"type": "workout_complete"})
+    # Workout complete (natural finish)
+    if not session.get("ended"):
+        await broadcast(session, {"type": "workout_complete"})
     session["started"] = False
