@@ -39,6 +39,7 @@ async def create_session():
         "workout": [],          # list of intervals
         "started": False,
         "pause_event": None,    # asyncio.Event — set=running, clear=paused
+        "block_event": None,    # asyncio.Event — set when host continues to next block
         "ended": False,
         "current_interval": None,  # last interval_start payload, for late-joining clients
         "last_tick": None,         # last tick payload, for late-joining clients
@@ -104,11 +105,24 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
                     session["pause_event"].set()
                     await broadcast(session, {"type": "resumed"})
 
+            # Host continues to next block after a block break
+            elif data["type"] == "continue_block":
+                if session.get("block_event"):
+                    session["block_event"].set()
+
+            # Emoji reaction — broadcast to all clients
+            elif data["type"] == "emote":
+                emoji = data.get("emoji", "")
+                if emoji in {"👍", "🥵", "🤘", "🙌", "😝"}:
+                    await broadcast(session, {"type": "emote", "emoji": emoji})
+
             # Host ends the workout early
             elif data["type"] == "end":
                 session["ended"] = True
                 if session.get("pause_event"):
                     session["pause_event"].set()  # unblock if currently paused
+                if session.get("block_event"):
+                    session["block_event"].set()  # unblock if waiting between blocks
                 session["started"] = False
                 await broadcast(session, {"type": "workout_complete"})
 
@@ -138,6 +152,14 @@ async def run_workout(session):
     intervals = session["workout"]
     total = len(intervals)
 
+    # Group consecutive intervals by their block index
+    blocks = []
+    for iv in intervals:
+        b = iv.get("block", 0)
+        if not blocks or blocks[-1][0] != b:
+            blocks.append((b, []))
+        blocks[-1][1].append(iv)
+
     # 5-second countdown before the first interval
     for count in range(5, 0, -1):
         if session.get("ended"):
@@ -145,44 +167,52 @@ async def run_workout(session):
         await broadcast(session, {"type": "countdown", "count": count})
         await asyncio.sleep(1)
 
-    for i, interval in enumerate(intervals):
-        if session.get("ended"):
-            return
+    global_idx = 0  # position across all intervals
 
-        duration = interval["duration"]  # seconds
-        label = interval["label"]
-        effort = interval["effort"]
-
-        # Announce interval start and store for late-joining clients
-        interval_msg = {
-            "type": "interval_start",
-            "index": i,
-            "total": total,
-            "label": label,
-            "effort": effort,
-            "duration": duration,
-            "rep": interval.get("rep", 1),
-            "totalReps": interval.get("totalReps", 1),
-        }
-        session["current_interval"] = interval_msg
-        session["last_tick"] = None
-        await broadcast(session, interval_msg)
-
-        # Count down
-        for remaining in range(duration, 0, -1):
+    for block_pos, (block_idx, block_intervals) in enumerate(blocks):
+        for iv in block_intervals:
             if session.get("ended"):
                 return
 
-            # Block here while paused
-            await session["pause_event"].wait()
+            duration = iv["duration"]
+            interval_msg = {
+                "type": "interval_start",
+                "index": global_idx,
+                "total": total,
+                "label": iv["label"],
+                "effort": iv["effort"],
+                "duration": duration,
+                "rep": iv.get("rep", 1),
+                "totalReps": iv.get("totalReps", 1),
+            }
+            session["current_interval"] = interval_msg
+            session["last_tick"] = None
+            await broadcast(session, interval_msg)
 
+            for remaining in range(duration, 0, -1):
+                if session.get("ended"):
+                    return
+                await session["pause_event"].wait()
+                if session.get("ended"):
+                    return
+                tick_msg = {"type": "tick", "remaining": remaining, "duration": duration}
+                session["last_tick"] = tick_msg
+                await broadcast(session, tick_msg)
+                await asyncio.sleep(1)
+
+            global_idx += 1
+
+        # After each block except the last: pause and wait for host to continue
+        if block_pos < len(blocks) - 1:
+            session["block_event"] = asyncio.Event()
+            await broadcast(session, {
+                "type": "block_complete",
+                "block": block_pos + 1,
+                "totalBlocks": len(blocks),
+            })
+            await session["block_event"].wait()
             if session.get("ended"):
                 return
-
-            tick_msg = {"type": "tick", "remaining": remaining, "duration": duration}
-            session["last_tick"] = tick_msg
-            await broadcast(session, tick_msg)
-            await asyncio.sleep(1)
 
     # Workout complete (natural finish)
     if not session.get("ended"):

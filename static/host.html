@@ -21,12 +21,8 @@
     <hr style="border-color:#222; margin: 24px 0;">
     <h2 style="text-align:left; margin-bottom:16px;">Build Your Workout</h2>
 
-    <div id="intervals-container"></div>
-    <button class="secondary" onclick="addInterval()">+ Add Interval</button>
-
-    <div style="margin-top: 8px;">
-        <input type="number" id="reps" placeholder="Repeat set how many times?" min="1" value="1">
-    </div>
+    <div id="blocks-container"></div>
+    <button class="secondary" onclick="addBlock()" style="margin-top:8px;">+ Add Block</button>
 
     <button id="start-btn" onclick="startWorkout()" style="margin-top:20px; display:none;">
         Start Workout for Everyone
@@ -61,43 +57,77 @@
         }
     };
 
-    // Start with one blank interval row
-    addInterval();
+    // Initialise with one block
+    addBlock();
 
-    function addInterval(label = '', effort = '', duration = '') {
-        const container = document.getElementById('intervals-container');
+    function addBlock() {
+        const container = document.getElementById('blocks-container');
+        const idx = container.querySelectorAll('.block').length;
+        const block = document.createElement('div');
+        block.className = 'block';
+        block.innerHTML = `
+            <div class="block-header">
+                <span class="block-title">Block ${idx + 1}</span>
+                <button class="secondary" style="width:auto;padding:6px 12px;min-height:unset;font-size:0.75rem;"
+                        onclick="removeBlock(this)">Remove</button>
+            </div>
+            <div class="block-intervals"></div>
+            <div class="block-footer">
+                <button class="secondary" style="flex:1;min-height:40px;font-size:0.8rem;margin-top:0;"
+                        onclick="addIntervalToBlock(this)">+ Add Interval</button>
+                <label>Reps <input type="number" class="block-reps" min="1" value="1"
+                                   style="width:56px;margin-bottom:0;text-align:center;"></label>
+            </div>
+        `;
+        container.appendChild(block);
+        addIntervalToBlock(block.querySelector('.block-footer button'));
+        updateBlockTitles();
+    }
+
+    function removeBlock(btn) {
+        btn.closest('.block').remove();
+        updateBlockTitles();
+    }
+
+    function updateBlockTitles() {
+        document.querySelectorAll('.block-title').forEach((el, i) => {
+            el.textContent = `Block ${i + 1}`;
+        });
+    }
+
+    function addIntervalToBlock(btn) {
+        const intervals = btn.closest('.block').querySelector('.block-intervals');
         const row = document.createElement('div');
         row.className = 'interval-row';
         row.innerHTML = `
-            <input type="text" placeholder="Label (e.g. Hard Effort)" value="${label}" style="flex:2">
-            <input type="number" placeholder="%" min="1" max="100" value="${effort}" style="flex:1" title="Effort %">
-            <input type="number" placeholder="Secs" min="1" value="${duration}" style="flex:1" title="Duration in seconds">
-            <button class="secondary" onclick="this.parentElement.remove()">&#10005;</button>
+            <input type="text" placeholder="Label (e.g. Hard Effort)" style="flex:2">
+            <input type="number" placeholder="%" min="1" max="100" style="flex:1" title="Effort %">
+            <input type="number" placeholder="Secs" min="1" style="flex:1" title="Duration in seconds">
+            <button class="secondary" onclick="this.parentElement.remove()"
+                    style="width:auto;padding:12px 16px;margin-top:0;min-height:48px;">&#10005;</button>
         `;
-        container.appendChild(row);
+        intervals.appendChild(row);
     }
 
     function buildIntervals() {
-        const rows = document.querySelectorAll('.interval-row');
-        const reps = parseInt(document.getElementById('reps').value) || 1;
-        const base = [];
-
-        rows.forEach(row => {
-            const inputs = row.querySelectorAll('input');
-            base.push({
-                label: inputs[0].value || 'Interval',
-                effort: parseInt(inputs[1].value) || 80,
-                duration: parseInt(inputs[2].value) || 60,
+        const allIntervals = [];
+        document.querySelectorAll('.block').forEach((block, blockIdx) => {
+            const reps = parseInt(block.querySelector('.block-reps').value) || 1;
+            const base = [];
+            block.querySelectorAll('.interval-row').forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                base.push({
+                    label: inputs[0].value || 'Interval',
+                    effort: parseInt(inputs[1].value) || 80,
+                    duration: parseInt(inputs[2].value) || 60,
+                    block: blockIdx,
+                });
             });
+            for (let i = 0; i < reps; i++) {
+                base.forEach(iv => allIntervals.push({ ...iv, rep: i + 1, totalReps: reps }));
+            }
         });
-
-        const intervals = [];
-        for (let i = 0; i < reps; i++) {
-            base.forEach(interval => {
-                intervals.push({ ...interval, rep: i + 1, totalReps: reps });
-            });
-        }
-        return intervals;
+        return allIntervals;
     }
 
     function startWorkout() {

@@ -60,6 +60,15 @@
             <ul class="participants-modal-list hidden" id="workout-participant-list"></ul>
         </div>
 
+        <!-- Emoji bar -->
+        <div class="emoji-bar">
+            <button class="emoji-btn" onclick="sendEmote('👍')">👍</button>
+            <button class="emoji-btn" onclick="sendEmote('🥵')">🥵</button>
+            <button class="emoji-btn" onclick="sendEmote('🤘')">🤘</button>
+            <button class="emoji-btn" onclick="sendEmote('🙌')">🙌</button>
+            <button class="emoji-btn" onclick="sendEmote('😝')">😝</button>
+        </div>
+
         <!-- Host-only controls -->
         <div id="host-controls" class="hidden" style="margin-top: 12px;">
             <div style="display:flex; gap:8px;">
@@ -69,11 +78,19 @@
         </div>
     </div>
 
+    <!-- Block break -->
+    <div id="block-break" class="hidden">
+        <h2 id="block-break-heading">Block Complete!</h2>
+        <p class="status">Waiting for host to continue...</p>
+        <button id="continue-btn" class="hidden" onclick="continueWorkout()">Continue</button>
+    </div>
+
     <!-- Complete -->
     <div id="complete" class="hidden">
         <h2>Workout Complete!</h2>
         <p class="status">Great ride, everyone!</p>
-        <button onclick="window.location.href='/'">Back to Home</button>
+        <div id="stats-container"></div>
+        <button onclick="window.location.href='/'" style="margin-top:16px;">Back to Home</button>
     </div>
 </div>
 
@@ -87,6 +104,8 @@
     const CIRCUMFERENCE = 565.5;
     let participantsExpanded = false;
     let ws;
+    let completedIntervals = [];
+    let sessionStartTime = null;
 
     document.getElementById('lobby-code').textContent = code;
 
@@ -138,9 +157,16 @@
         }
 
         if (data.type === 'interval_start') {
+            // Hide block-break screen if transitioning from one
+            document.getElementById('block-break').classList.add('hidden');
+            document.getElementById('continue-btn').classList.add('hidden');
             document.getElementById('countdown-display').classList.add('hidden');
             document.getElementById('lobby').classList.add('hidden');
             document.getElementById('workout').classList.remove('hidden');
+
+            // Track stats
+            if (data.index === 0) sessionStartTime = Date.now();
+            completedIntervals.push({ label: data.label, effort: data.effort, duration: data.duration });
 
             if (role === 'host') {
                 document.getElementById('host-controls').classList.remove('hidden');
@@ -187,11 +213,28 @@
             setPaused(false);
         }
 
-        if (data.type === 'workout_complete') {
+        if (data.type === 'block_complete') {
             document.getElementById('workout').classList.add('hidden');
+            const breakEl = document.getElementById('block-break');
+            breakEl.classList.remove('hidden');
+            document.getElementById('block-break-heading').textContent =
+                `Block ${data.block} of ${data.totalBlocks} Complete!`;
+            if (role === 'host') {
+                document.getElementById('continue-btn').classList.remove('hidden');
+            }
+        }
+
+        if (data.type === 'workout_complete') {
+            renderStats();
+            document.getElementById('workout').classList.add('hidden');
+            document.getElementById('block-break').classList.add('hidden');
             const completeEl = document.getElementById('complete');
             completeEl.classList.remove('hidden');
             completeEl.classList.add('section-enter');
+        }
+
+        if (data.type === 'emote') {
+            showFloatingEmoji(data.emoji);
         }
 
         if (data.type === 'error') {
@@ -225,6 +268,57 @@
         if (confirm('End the workout for everyone?')) {
             ws.send(JSON.stringify({ type: 'end' }));
         }
+    }
+
+    function continueWorkout() {
+        ws.send(JSON.stringify({ type: 'continue_block' }));
+        document.getElementById('continue-btn').classList.add('hidden');
+    }
+
+    function sendEmote(emoji) {
+        ws.send(JSON.stringify({ type: 'emote', emoji }));
+    }
+
+    function showFloatingEmoji(emoji) {
+        const el = document.createElement('div');
+        el.className = 'floating-emoji';
+        el.textContent = emoji;
+        el.style.left = `${15 + Math.random() * 70}%`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 2200);
+    }
+
+    function renderStats() {
+        const totalSecs = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
+        const mins = Math.floor(totalSecs / 60);
+        const secs = String(totalSecs % 60).padStart(2, '0');
+        const n = completedIntervals.length;
+        const W = 420, H = 100;
+        const barW = n > 0 ? Math.max(4, Math.min(32, (W - 20) / n - 3)) : 0;
+        const step = n > 1 ? (W - 20 - barW) / (n - 1) : 0;
+
+        const bars = completedIntervals.map((iv, i) => {
+            const barH = (iv.effort / 100) * H;
+            const x = 10 + i * step;
+            const y = H - barH;
+            const hue = Math.round(120 - (iv.effort / 100) * 120);
+            return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW}" height="${barH.toFixed(1)}" rx="3" fill="hsl(${hue},85%,50%)"/>`;
+        }).join('');
+
+        const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:12px 0;">${bars}</svg>`;
+
+        const listItems = completedIntervals.map(iv =>
+            `<li><span>${iv.label}</span><span>${iv.effort}% · ${iv.duration}s</span></li>`
+        ).join('');
+
+        document.getElementById('stats-container').innerHTML = `
+            <div class="stats-section">
+                <div class="stats-label">Effort Over Time</div>
+                ${svg}
+                <div class="stats-label" style="margin-top:16px;">Intervals</div>
+                <ul class="stats-list">${listItems}</ul>
+                <div class="stats-total">Total time: ${mins}m ${secs}s</div>
+            </div>`;
     }
 </script>
 </body>
