@@ -109,16 +109,25 @@ button.secondary:hover { background: #444; }
 .status { color: #888; font-size: 0.9rem; margin-top: 16px; }
 .hidden { display: none; }
 
-.paused-badge {
+.status-badge {
     display: inline-block;
-    background: #555;
     color: #fff;
     font-size: 0.8rem;
     font-weight: 700;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     padding: 4px 12px;
     border-radius: 20px;
     margin-bottom: 8px;
+}
+
+.status-running {
+    background: #166534;
+    color: #4ade80;
+}
+
+.status-paused {
+    background: #3a3a3a;
+    color: #aaa;
 }
 
 .interval-row {

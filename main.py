@@ -40,6 +40,8 @@ async def create_session():
         "started": False,
         "pause_event": None,    # asyncio.Event — set=running, clear=paused
         "ended": False,
+        "current_interval": None,  # last interval_start payload, for late-joining clients
+        "last_tick": None,         # last tick payload, for late-joining clients
     }
     return {"code": code}
 
@@ -62,6 +64,14 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
 
     # Notify all clients of updated participant list
     await broadcast_participants(session)
+
+    # If a workout is already running, catch this client up immediately
+    if session.get("started") and session.get("current_interval"):
+        await websocket.send_text(json.dumps(session["current_interval"]))
+        if session.get("last_tick"):
+            await websocket.send_text(json.dumps(session["last_tick"]))
+        if session.get("pause_event") and not session["pause_event"].is_set():
+            await websocket.send_text(json.dumps({"type": "paused"}))
 
     try:
         async for message in websocket.iter_text():
@@ -129,8 +139,8 @@ async def run_workout(session):
         label = interval["label"]
         effort = interval["effort"]
 
-        # Announce interval start
-        await broadcast(session, {
+        # Announce interval start and store for late-joining clients
+        interval_msg = {
             "type": "interval_start",
             "index": i,
             "total": total,
@@ -139,7 +149,10 @@ async def run_workout(session):
             "duration": duration,
             "rep": interval.get("rep", 1),
             "totalReps": interval.get("totalReps", 1),
-        })
+        }
+        session["current_interval"] = interval_msg
+        session["last_tick"] = None
+        await broadcast(session, interval_msg)
 
         # Count down
         for remaining in range(duration, 0, -1):
@@ -152,11 +165,9 @@ async def run_workout(session):
             if session.get("ended"):
                 return
 
-            await broadcast(session, {
-                "type": "tick",
-                "remaining": remaining,
-                "duration": duration,
-            })
+            tick_msg = {"type": "tick", "remaining": remaining, "duration": duration}
+            session["last_tick"] = tick_msg
+            await broadcast(session, tick_msg)
             await asyncio.sleep(1)
 
     # Workout complete (natural finish)

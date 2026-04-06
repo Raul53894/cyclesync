@@ -23,7 +23,7 @@
     <div id="workout" class="hidden">
         <div class="interval-label" id="interval-label"></div>
         <div class="effort-label" id="effort-label"></div>
-        <div id="paused-badge" class="paused-badge hidden">PAUSED</div>
+        <div id="status-badge" class="status-badge status-running">● Running</div>
         <div class="timer-ring" id="timer">0:00</div>
         <div class="progress-bar-bg">
             <div class="progress-bar" id="progress-bar" style="width:100%"></div>
@@ -119,7 +119,9 @@
 
     function setPaused(paused) {
         isPaused = paused;
-        document.getElementById('paused-badge').classList.toggle('hidden', !paused);
+        const badge = document.getElementById('status-badge');
+        badge.textContent = paused ? '⏸ Paused' : '● Running';
+        badge.className = paused ? 'status-badge status-paused' : 'status-badge status-running';
         document.getElementById('progress-bar').style.background = paused ? '#555' : '#f97316';
         if (role === 'host') {
             document.getElementById('pause-btn').textContent = paused ? 'Resume' : 'Pause';
