@@ -23,7 +23,8 @@
     <div id="workout" class="hidden">
         <div class="interval-label" id="interval-label"></div>
         <div class="effort-label" id="effort-label"></div>
-        <div id="status-badge" class="status-badge status-running">● Running</div>
+        <div class="effort-pct" id="effort-pct"></div>
+
         <div class="timer-ring-container">
             <svg class="timer-ring" viewBox="0 0 200 200" width="220" height="220">
                 <circle class="ring-track"
@@ -36,15 +37,23 @@
                         stroke-dasharray="565.5" stroke-dashoffset="0"
                         transform="rotate(-90 100 100)"/>
             </svg>
-            <div class="ring-time" id="timer">0:00</div>
+            <div class="ring-center">
+                <div class="ring-time" id="timer">0:00</div>
+                <div id="status-badge" class="status-badge status-running">● Running</div>
+            </div>
         </div>
-        <div class="progress-bar-bg">
-            <div class="progress-bar" id="progress-bar" style="width:100%"></div>
+
+        <!-- Participants panel -->
+        <div class="participants-modal" id="participants-modal">
+            <div class="participants-modal-header" onclick="toggleParticipants()">
+                <span id="participants-count">Riders</span>
+                <span class="modal-chevron" id="modal-chevron">▲</span>
+            </div>
+            <ul class="participants-modal-list hidden" id="workout-participant-list"></ul>
         </div>
-        <p class="status" id="interval-counter"></p>
 
         <!-- Host-only controls -->
-        <div id="host-controls" class="hidden" style="margin-top: 24px;">
+        <div id="host-controls" class="hidden" style="margin-top: 12px;">
             <div style="display:flex; gap:8px;">
                 <button id="pause-btn" onclick="togglePause()" style="flex:1;">Pause</button>
                 <button onclick="endWorkout()" class="danger" style="flex:1;">End Workout</button>
@@ -67,29 +76,8 @@
     const role = params.get('role') || 'attendee';
     let isPaused = false;
     let currentDuration = 60;
-    let currentEffort = 80;
     const CIRCUMFERENCE = 565.5;
-
-    function effortColor(effort) {
-        const t = Math.min(1, Math.max(0, (effort - 20) / 80));
-        let h, s, l;
-        if (t < 0.5) {
-            const u = t / 0.5;
-            h = 144 + (55 - 144) * u;
-            s = 100; l = 55;
-        } else {
-            const u = (t - 0.5) / 0.5;
-            h = 55 + (0 - 55) * u;
-            s = 100;
-            l = 50 + (45 - 50) * u;
-        }
-        return `hsl(${Math.round(h)}, ${s}%, ${Math.round(l)}%)`;
-    }
-
-    function applyEffortColor(color) {
-        document.getElementById('ring-progress').style.stroke = color;
-        document.documentElement.style.setProperty('--effort-color', color);
-    }
+    let participantsExpanded = false;
 
     document.getElementById('lobby-code').textContent = code;
 
@@ -100,8 +88,12 @@
         const data = JSON.parse(event.data);
 
         if (data.type === 'participants') {
-            const list = document.getElementById('participant-list');
-            list.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
+            const lobbyList = document.getElementById('participant-list');
+            if (lobbyList) lobbyList.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
+            const workoutList = document.getElementById('workout-participant-list');
+            if (workoutList) workoutList.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
+            const count = document.getElementById('participants-count');
+            if (count) count.textContent = `${data.names.length} Rider${data.names.length !== 1 ? 's' : ''}`;
         }
 
         if (data.type === 'interval_start') {
@@ -119,13 +111,11 @@
 
             document.getElementById('interval-label').textContent =
                 `Interval ${data.index + 1} of ${data.total}${repInfo}`;
-            document.getElementById('effort-label').textContent =
-                `${data.label} — ${data.effort}% Effort`;
+            document.getElementById('effort-label').textContent = data.label;
+            document.getElementById('effort-pct').textContent = `${data.effort}% Effort`;
 
-            // Store for ring and colour calculations
+            // Store for ring calculations
             currentDuration = data.duration;
-            currentEffort = data.effort;
-            applyEffortColor(effortColor(data.effort));
 
             // Safe ring reset — disable transition to avoid animated reverse
             const ring = document.getElementById('ring-progress');
@@ -150,7 +140,6 @@
 
             const fraction = data.remaining / (data.duration || currentDuration);
             document.getElementById('ring-progress').style.strokeDashoffset = CIRCUMFERENCE * (1 - fraction);
-            document.getElementById('progress-bar').style.width = `${fraction * 100}%`;
         }
 
         if (data.type === 'paused') {
@@ -179,15 +168,16 @@
         const badge = document.getElementById('status-badge');
         badge.textContent = paused ? '⏸ Paused' : '● Running';
         badge.className = paused ? 'status-badge status-paused' : 'status-badge status-running';
-        if (paused) {
-            document.getElementById('ring-progress').style.stroke = '#555';
-            document.documentElement.style.setProperty('--effort-color', '#555');
-        } else {
-            applyEffortColor(effortColor(currentEffort));
-        }
+        document.getElementById('ring-progress').style.stroke = paused ? '#555' : '#22ff66';
         if (role === 'host') {
             document.getElementById('pause-btn').textContent = paused ? 'Resume' : 'Pause';
         }
+    }
+
+    function toggleParticipants() {
+        participantsExpanded = !participantsExpanded;
+        document.getElementById('workout-participant-list').classList.toggle('hidden', !participantsExpanded);
+        document.getElementById('modal-chevron').textContent = participantsExpanded ? '▼' : '▲';
     }
 
     function togglePause() {

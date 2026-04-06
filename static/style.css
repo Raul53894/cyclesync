@@ -183,11 +183,19 @@ button.danger:active {
     transition: stroke-dashoffset 1s linear, stroke 0.6s ease;
 }
 
-.ring-time {
+.ring-center {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.ring-time {
     font-size: 2.8rem;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
@@ -197,13 +205,21 @@ button.danger:active {
 }
 
 .effort-label {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 900;
     letter-spacing: 1px;
     text-transform: uppercase;
+    margin-bottom: 2px;
+    color: var(--text);
+}
+
+.effort-pct {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--green);
     margin-bottom: 4px;
-    color: var(--effort-color);
-    transition: color 0.6s ease;
 }
 
 .interval-label {
@@ -215,19 +231,53 @@ button.danger:active {
     margin-bottom: 16px;
 }
 
-.progress-bar-bg {
-    background: #1e1e1e;
-    border-radius: 10px;
-    height: 8px;
-    margin: 8px 0 16px;
+.participants-modal {
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    margin-top: 20px;
     overflow: hidden;
 }
 
-.progress-bar {
-    height: 100%;
-    background: var(--effort-color);
-    border-radius: 10px;
-    transition: width 1s linear, background 0.6s ease;
+.participants-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.participants-modal-header span:first-child {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.modal-chevron {
+    font-size: 0.65rem;
+    color: var(--muted);
+}
+
+.participants-modal-list {
+    padding: 0 16px 12px;
+    margin: 0;
+}
+
+.participants-modal-list li {
+    padding: 6px 0;
+    border-bottom: 1px solid #1e1e1e;
+    list-style: none;
+    color: #ccc;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-align: left;
+}
+
+.participants-modal-list li:last-child {
+    border-bottom: none;
 }
 
 .status { color: var(--muted); font-size: 0.9rem; margin-top: 16px; }
@@ -290,9 +340,9 @@ button.danger:active {
     body { padding: 12px; align-items: flex-start; padding-top: 24px; }
     .card { padding: 24px 20px; border-radius: 16px; }
     h1 { font-size: 1.7rem; }
-    .ring-time { font-size: 2.2rem; }
+    .ring-time { font-size: 2rem; }
     .timer-ring-container svg { width: 180px; height: 180px; }
-    .effort-label { font-size: 1.6rem; }
+    .effort-label { font-size: 1.3rem; }
     .code-display { font-size: 2rem; letter-spacing: 6px; }
     button { padding: 16px 12px; font-size: 0.9rem; }
     .interval-row { flex-wrap: wrap; }
