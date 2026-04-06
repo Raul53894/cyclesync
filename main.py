@@ -138,7 +138,12 @@ async def broadcast(session, message):
             pass
 
 async def broadcast_participants(session):
-    names = list(session["names"].values())
+    seen = set()
+    names = []
+    for n in session["names"].values():
+        if n not in seen:
+            seen.add(n)
+            names.append(n)
     await broadcast(session, {"type": "participants", "names": names})
 
 async def run_workout(session):

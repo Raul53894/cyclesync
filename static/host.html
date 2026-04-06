@@ -125,7 +125,6 @@
         const intervals = buildIntervals();
         ws.send(JSON.stringify({ type: 'set_workout', intervals }));
         ws.send(JSON.stringify({ type: 'start_workout' }));
-        ws.close();
         window.location.href = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
     }
 
