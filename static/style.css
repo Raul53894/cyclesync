@@ -280,6 +280,94 @@ button.danger:active {
     border-bottom: none;
 }
 
+/* Page wrapper — stacks video player above card */
+.page-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 520px;
+    gap: 16px;
+}
+
+/* YouTube player container */
+#yt-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--card-border);
+    position: relative;
+    background: #000;
+}
+
+#yt-container iframe {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.yt-unmute {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    padding: 6px 14px;
+    font-size: 0.75rem;
+    width: auto;
+    min-height: unset;
+    margin-top: 0;
+}
+
+/* Countdown display */
+.countdown-display {
+    font-size: 6rem;
+    font-weight: 900;
+    color: var(--green);
+    text-shadow: 0 0 40px rgba(34, 255, 102, 0.6);
+    line-height: 1;
+    margin: 32px 0;
+    font-variant-numeric: tabular-nums;
+    animation: countdownPulse 0.9s ease-out forwards;
+}
+
+@keyframes countdownPulse {
+    from { transform: scale(1.3); opacity: 0.5; }
+    to   { transform: scale(1);   opacity: 1; }
+}
+
+/* Playlist section in lobby */
+.video-section {
+    margin-top: 20px;
+    text-align: left;
+}
+
+.video-section h3 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+}
+
+.playlist-list {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.playlist-list li {
+    font-size: 0.8rem;
+    color: #ccc;
+    padding: 5px 0;
+    border-bottom: 1px solid #1e1e1e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.playlist-list li:last-child { border-bottom: none; }
+
 .status { color: var(--muted); font-size: 0.9rem; margin-top: 16px; }
 .hidden { display: none; }
 

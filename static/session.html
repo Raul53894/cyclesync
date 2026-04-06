@@ -7,72 +7,92 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<div class="card">
-    <h1>CycleSync</h1>
+<div class="page-wrap">
 
-    <!-- Name entry (used when joining via shared link) -->
-    <div id="name-entry" class="hidden">
-        <h2>Enter your name to join</h2>
-        <input type="text" id="name-input" placeholder="Your name" maxlength="30">
-        <button onclick="submitName()">Join Session</button>
+    <!-- YouTube player (hidden until workout starts) -->
+    <div id="yt-container" class="hidden">
+        <div id="yt-player"></div>
+        <button class="secondary yt-unmute" id="yt-unmute-btn" onclick="toggleMute()">🔇 Unmute</button>
     </div>
 
-    <!-- Lobby (waiting) -->
-    <div id="lobby">
-        <p>Session: <strong id="lobby-code"></strong></p>
-        <h2>Waiting for host to start...</h2>
-        <div class="participant-list">
-            <ul id="participant-list"></ul>
+    <div class="card">
+        <h1>CycleSync</h1>
+
+        <!-- Name entry (used when joining via shared link) -->
+        <div id="name-entry" class="hidden">
+            <h2>Enter your name to join</h2>
+            <input type="text" id="name-input" placeholder="Your name" maxlength="30">
+            <button onclick="submitName()">Join Session</button>
         </div>
-    </div>
 
-    <!-- Live workout -->
-    <div id="workout" class="hidden">
-        <div class="interval-label" id="interval-label"></div>
-        <div class="effort-label" id="effort-label"></div>
-        <div class="effort-pct" id="effort-pct"></div>
+        <!-- Lobby (waiting) -->
+        <div id="lobby">
+            <p>Session: <strong id="lobby-code"></strong></p>
+            <h2>Waiting for host to start...</h2>
+            <div id="countdown-display" class="countdown-display hidden"></div>
+            <div class="participant-list">
+                <ul id="participant-list"></ul>
+            </div>
 
-        <div class="timer-ring-container">
-            <svg class="timer-ring" viewBox="0 0 200 200" width="220" height="220">
-                <circle class="ring-track"
-                        cx="100" cy="100" r="90"
-                        fill="none" stroke="#222" stroke-width="10"/>
-                <circle class="ring-progress" id="ring-progress"
-                        cx="100" cy="100" r="90"
-                        fill="none" stroke="#22ff66" stroke-width="10"
-                        stroke-linecap="round"
-                        stroke-dasharray="565.5" stroke-dashoffset="0"
-                        transform="rotate(-90 100 100)"/>
-            </svg>
-            <div class="ring-center">
-                <div class="ring-time" id="timer">0:00</div>
-                <div id="status-badge" class="status-badge status-running">● Running</div>
+            <!-- Video playlist -->
+            <div class="video-section">
+                <h3>Add to Playlist (up to 10)</h3>
+                <div class="interval-row">
+                    <input type="text" id="video-url-input" placeholder="YouTube link" style="flex:1; margin-bottom:0;">
+                    <button class="secondary" onclick="addVideo()" style="width:auto; margin-top:0; padding:12px 16px; min-height:48px;">Add</button>
+                </div>
+                <ul class="playlist-list" id="lobby-playlist"></ul>
             </div>
         </div>
 
-        <!-- Participants panel -->
-        <div class="participants-modal" id="participants-modal">
-            <div class="participants-modal-header" onclick="toggleParticipants()">
-                <span id="participants-count">Riders</span>
-                <span class="modal-chevron" id="modal-chevron">▲</span>
+        <!-- Live workout -->
+        <div id="workout" class="hidden">
+            <div class="interval-label" id="interval-label"></div>
+            <div class="effort-label" id="effort-label"></div>
+            <div class="effort-pct" id="effort-pct"></div>
+
+            <div class="timer-ring-container">
+                <svg class="timer-ring" viewBox="0 0 200 200" width="220" height="220">
+                    <circle class="ring-track"
+                            cx="100" cy="100" r="90"
+                            fill="none" stroke="#222" stroke-width="10"/>
+                    <circle class="ring-progress" id="ring-progress"
+                            cx="100" cy="100" r="90"
+                            fill="none" stroke="#22ff66" stroke-width="10"
+                            stroke-linecap="round"
+                            stroke-dasharray="565.5" stroke-dashoffset="0"
+                            transform="rotate(-90 100 100)"/>
+                </svg>
+                <div class="ring-center">
+                    <div class="ring-time" id="timer">0:00</div>
+                    <div id="status-badge" class="status-badge status-running">● Working</div>
+                </div>
             </div>
-            <ul class="participants-modal-list hidden" id="workout-participant-list"></ul>
+
+            <!-- Participants panel -->
+            <div class="participants-modal" id="participants-modal">
+                <div class="participants-modal-header" onclick="toggleParticipants()">
+                    <span id="participants-count">Riders</span>
+                    <span class="modal-chevron" id="modal-chevron">▲</span>
+                </div>
+                <ul class="participants-modal-list hidden" id="workout-participant-list"></ul>
+            </div>
+
+            <!-- Host-only controls -->
+            <div id="host-controls" class="hidden" style="margin-top: 12px;">
+                <div style="display:flex; gap:8px;">
+                    <button id="pause-btn" onclick="togglePause()" style="flex:1;">Pause</button>
+                    <button onclick="endWorkout()" class="danger" style="flex:1;">End Workout</button>
+                </div>
+            </div>
         </div>
 
-        <!-- Host-only controls -->
-        <div id="host-controls" class="hidden" style="margin-top: 12px;">
-            <div style="display:flex; gap:8px;">
-                <button id="pause-btn" onclick="togglePause()" style="flex:1;">Pause</button>
-                <button onclick="endWorkout()" class="danger" style="flex:1;">End Workout</button>
-            </div>
+        <!-- Complete -->
+        <div id="complete" class="hidden">
+            <h2>Workout Complete!</h2>
+            <p class="status">Great ride, everyone!</p>
+            <button onclick="window.location.href='/'">Back to Home</button>
         </div>
-    </div>
-
-    <!-- Complete -->
-    <div id="complete" class="hidden">
-        <h2>Workout Complete!</h2>
-        <p class="status">Great ride, everyone!</p>
-        <button onclick="window.location.href='/'">Back to Home</button>
     </div>
 </div>
 
@@ -86,6 +106,10 @@
     const CIRCUMFERENCE = 565.5;
     let participantsExpanded = false;
     let ws;
+    let ytPlayer;
+    let ytPlayerReady = false;
+    let ytMuted = true;
+    let videoPlaylist = [];
 
     document.getElementById('lobby-code').textContent = code;
 
@@ -115,6 +139,10 @@
         if (e.key === 'Enter') submitName();
     });
 
+    document.getElementById('video-url-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addVideo();
+    });
+
     function handleMessage(event) {
         const data = JSON.parse(event.data);
 
@@ -127,13 +155,36 @@
             if (count) count.textContent = `${data.names.length} Rider${data.names.length !== 1 ? 's' : ''}`;
         }
 
+        if (data.type === 'playlist_update') {
+            videoPlaylist = data.videos;
+            const list = document.getElementById('lobby-playlist');
+            if (list) list.innerHTML = data.videos.map((id, i) => `<li>&#9654; Video ${i + 1}</li>`).join('');
+        }
+
+        if (data.type === 'countdown') {
+            const el = document.getElementById('countdown-display');
+            el.classList.remove('hidden');
+            el.textContent = data.count;
+            el.style.animation = 'none';
+            void el.offsetWidth;
+            el.style.animation = '';
+        }
+
         if (data.type === 'interval_start') {
+            document.getElementById('countdown-display').classList.add('hidden');
             document.getElementById('lobby').classList.add('hidden');
             document.getElementById('workout').classList.remove('hidden');
 
             // Show host controls only for the host
             if (role === 'host') {
                 document.getElementById('host-controls').classList.remove('hidden');
+            }
+
+            // Start video playback on first interval
+            if (data.index === 0 && videoPlaylist.length > 0 && ytPlayerReady) {
+                document.getElementById('yt-container').classList.remove('hidden');
+                ytPlayer.loadPlaylist(videoPlaylist, 0, 0);
+                ytPlayer.playVideo();
             }
 
             const repInfo = data.totalReps > 1
@@ -157,7 +208,7 @@
             // Animate section entrance
             const workoutEl = document.getElementById('workout');
             workoutEl.classList.remove('section-enter');
-            void workoutEl.offsetWidth; // force reflow to restart animation
+            void workoutEl.offsetWidth;
             workoutEl.classList.add('section-enter');
 
             // Clear paused state on new interval
@@ -182,6 +233,8 @@
         }
 
         if (data.type === 'workout_complete') {
+            if (ytPlayer) ytPlayer.stopVideo();
+            document.getElementById('yt-container').classList.add('hidden');
             document.getElementById('workout').classList.add('hidden');
             const completeEl = document.getElementById('complete');
             completeEl.classList.remove('hidden');
@@ -197,7 +250,7 @@
     function setPaused(paused) {
         isPaused = paused;
         const badge = document.getElementById('status-badge');
-        badge.textContent = paused ? '⏸ Paused' : '● Running';
+        badge.textContent = paused ? '⏸ Paused' : '● Working';
         badge.className = paused ? 'status-badge status-paused' : 'status-badge status-running';
         document.getElementById('ring-progress').style.stroke = paused ? '#555' : '#22ff66';
         if (role === 'host') {
@@ -219,6 +272,38 @@
         if (confirm('End the workout for everyone?')) {
             ws.send(JSON.stringify({ type: 'end' }));
         }
+    }
+
+    function extractVideoId(url) {
+        const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+        return m ? m[1] : null;
+    }
+
+    function addVideo() {
+        const input = document.getElementById('video-url-input');
+        const videoId = extractVideoId(input.value.trim());
+        if (!videoId) return alert('Please enter a valid YouTube link');
+        ws.send(JSON.stringify({ type: 'add_video', video_id: videoId }));
+        input.value = '';
+    }
+
+    function toggleMute() {
+        if (!ytPlayer) return;
+        ytMuted = !ytMuted;
+        ytMuted ? ytPlayer.mute() : ytPlayer.unMute();
+        document.getElementById('yt-unmute-btn').textContent = ytMuted ? '🔇 Unmute' : '🔊 Mute';
+    }
+
+    // Load YouTube IFrame API
+    const ytScript = document.createElement('script');
+    ytScript.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(ytScript);
+
+    function onYouTubeIframeAPIReady() {
+        ytPlayer = new YT.Player('yt-player', {
+            playerVars: { controls: 1, rel: 0, modestbranding: 1, mute: 1 },
+            events: { onReady: () => { ytPlayerReady = true; } }
+        });
     }
 </script>
 </body>
