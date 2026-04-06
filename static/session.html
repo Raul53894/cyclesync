@@ -24,7 +24,20 @@
         <div class="interval-label" id="interval-label"></div>
         <div class="effort-label" id="effort-label"></div>
         <div id="status-badge" class="status-badge status-running">● Running</div>
-        <div class="timer-ring" id="timer">0:00</div>
+        <div class="timer-ring-container">
+            <svg class="timer-ring" viewBox="0 0 200 200" width="220" height="220">
+                <circle class="ring-track"
+                        cx="100" cy="100" r="90"
+                        fill="none" stroke="#222" stroke-width="10"/>
+                <circle class="ring-progress" id="ring-progress"
+                        cx="100" cy="100" r="90"
+                        fill="none" stroke="#22ff66" stroke-width="10"
+                        stroke-linecap="round"
+                        stroke-dasharray="565.5" stroke-dashoffset="0"
+                        transform="rotate(-90 100 100)"/>
+            </svg>
+            <div class="ring-time" id="timer">0:00</div>
+        </div>
         <div class="progress-bar-bg">
             <div class="progress-bar" id="progress-bar" style="width:100%"></div>
         </div>
@@ -34,7 +47,7 @@
         <div id="host-controls" class="hidden" style="margin-top: 24px;">
             <div style="display:flex; gap:8px;">
                 <button id="pause-btn" onclick="togglePause()" style="flex:1;">Pause</button>
-                <button onclick="endWorkout()" style="flex:1; background:#dc2626;">End Workout</button>
+                <button onclick="endWorkout()" class="danger" style="flex:1;">End Workout</button>
             </div>
         </div>
     </div>
@@ -53,6 +66,30 @@
     const name = params.get('name');
     const role = params.get('role') || 'attendee';
     let isPaused = false;
+    let currentDuration = 60;
+    let currentEffort = 80;
+    const CIRCUMFERENCE = 565.5;
+
+    function effortColor(effort) {
+        const t = Math.min(1, Math.max(0, (effort - 20) / 80));
+        let h, s, l;
+        if (t < 0.5) {
+            const u = t / 0.5;
+            h = 144 + (55 - 144) * u;
+            s = 100; l = 55;
+        } else {
+            const u = (t - 0.5) / 0.5;
+            h = 55 + (0 - 55) * u;
+            s = 100;
+            l = 50 + (45 - 50) * u;
+        }
+        return `hsl(${Math.round(h)}, ${s}%, ${Math.round(l)}%)`;
+    }
+
+    function applyEffortColor(color) {
+        document.getElementById('ring-progress').style.stroke = color;
+        document.documentElement.style.setProperty('--effort-color', color);
+    }
 
     document.getElementById('lobby-code').textContent = code;
 
@@ -85,6 +122,23 @@
             document.getElementById('effort-label').textContent =
                 `${data.label} — ${data.effort}% Effort`;
 
+            // Store for ring and colour calculations
+            currentDuration = data.duration;
+            currentEffort = data.effort;
+            applyEffortColor(effortColor(data.effort));
+
+            // Safe ring reset — disable transition to avoid animated reverse
+            const ring = document.getElementById('ring-progress');
+            ring.style.transition = 'none';
+            ring.style.strokeDashoffset = '0';
+            requestAnimationFrame(() => { ring.style.transition = ''; });
+
+            // Animate section entrance
+            const workoutEl = document.getElementById('workout');
+            workoutEl.classList.remove('section-enter');
+            void workoutEl.offsetWidth; // force reflow to restart animation
+            workoutEl.classList.add('section-enter');
+
             // Clear paused state on new interval
             setPaused(false);
         }
@@ -94,8 +148,9 @@
             const secs = String(data.remaining % 60).padStart(2, '0');
             document.getElementById('timer').textContent = `${mins}:${secs}`;
 
-            const pct = (data.remaining / data.duration) * 100;
-            document.getElementById('progress-bar').style.width = `${pct}%`;
+            const fraction = data.remaining / (data.duration || currentDuration);
+            document.getElementById('ring-progress').style.strokeDashoffset = CIRCUMFERENCE * (1 - fraction);
+            document.getElementById('progress-bar').style.width = `${fraction * 100}%`;
         }
 
         if (data.type === 'paused') {
@@ -108,7 +163,9 @@
 
         if (data.type === 'workout_complete') {
             document.getElementById('workout').classList.add('hidden');
-            document.getElementById('complete').classList.remove('hidden');
+            const completeEl = document.getElementById('complete');
+            completeEl.classList.remove('hidden');
+            completeEl.classList.add('section-enter');
         }
 
         if (data.type === 'error') {
@@ -122,7 +179,12 @@
         const badge = document.getElementById('status-badge');
         badge.textContent = paused ? '⏸ Paused' : '● Running';
         badge.className = paused ? 'status-badge status-paused' : 'status-badge status-running';
-        document.getElementById('progress-bar').style.background = paused ? '#555' : '#f97316';
+        if (paused) {
+            document.getElementById('ring-progress').style.stroke = '#555';
+            document.documentElement.style.setProperty('--effort-color', '#555');
+        } else {
+            applyEffortColor(effortColor(currentEffort));
+        }
         if (role === 'host') {
             document.getElementById('pause-btn').textContent = paused ? 'Resume' : 'Pause';
         }
