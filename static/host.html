@@ -145,14 +145,24 @@
     }
 
     function extractVideoId(url) {
-        const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
-        return m ? m[1] : null;
+        const patterns = [
+            /[?&]v=([a-zA-Z0-9_-]{11})/,
+            /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+            /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+            /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+        ];
+        for (const p of patterns) {
+            const m = url.match(p);
+            if (m) return m[1];
+        }
+        return null;
     }
 
     function addVideo() {
         const input = document.getElementById('video-url-input');
         const videoId = extractVideoId(input.value.trim());
         if (!videoId) return alert('Please enter a valid YouTube link');
+        if (!ws || ws.readyState !== WebSocket.OPEN) return alert('Still connecting, try again in a moment');
         ws.send(JSON.stringify({ type: 'add_video', video_id: videoId }));
         input.value = '';
     }
