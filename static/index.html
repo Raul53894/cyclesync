@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CycleSync</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="card">
+    <h1>CycleSync</h1>
+    <h2>Synchronized cycling workouts with friends</h2>
+
+    <div id="join-section">
+        <input type="text" id="join-code" placeholder="Enter session code (e.g. AB1C2D)" maxlength="6" style="text-transform:uppercase">
+        <input type="text" id="join-name" placeholder="Your name">
+        <button onclick="joinSession()">Join Session</button>
+        <button class="secondary" onclick="showHost()">Host a Session</button>
+    </div>
+
+    <div id="host-section" class="hidden">
+        <input type="text" id="host-name" placeholder="Your name (host)">
+        <button onclick="createSession()">Create Session</button>
+        <button class="secondary" onclick="showJoin()">Back</button>
+    </div>
+</div>
+
+<script>
+    function showHost() {
+        document.getElementById('join-section').classList.add('hidden');
+        document.getElementById('host-section').classList.remove('hidden');
+    }
+
+    function showJoin() {
+        document.getElementById('host-section').classList.add('hidden');
+        document.getElementById('join-section').classList.remove('hidden');
+    }
+
+    async function createSession() {
+        const name = document.getElementById('host-name').value.trim();
+        if (!name) return alert('Please enter your name');
+
+        const res = await fetch('/create-session', { method: 'POST' });
+        const data = await res.json();
+        window.location.href = `/host?code=${data.code}&name=${encodeURIComponent(name)}`;
+    }
+
+    function joinSession() {
+        const code = document.getElementById('join-code').value.trim().toUpperCase();
+        const name = document.getElementById('join-name').value.trim();
+        if (!code || !name) return alert('Please enter both a code and your name');
+        window.location.href = `/session?code=${code}&name=${encodeURIComponent(name)}`;
+    }
+</script>
+</body>
+</html>

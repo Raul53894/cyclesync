@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CycleSync — Host</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="card">
+    <h1>You're the Host</h1>
+    <p>Share this code with your friends:</p>
+    <div class="code-display" id="session-code"></div>
+    <p class="status">Waiting for riders to join...</p>
+
+    <div class="participant-list">
+        <ul id="participant-list"></ul>
+    </div>
+
+    <hr style="border-color:#222; margin: 24px 0;">
+    <h2 style="text-align:left; margin-bottom:16px;">Build Your Workout</h2>
+
+    <div id="intervals-container"></div>
+    <button class="secondary" onclick="addInterval()">+ Add Interval</button>
+
+    <div style="margin-top: 8px;">
+        <input type="number" id="reps" placeholder="Repeat set how many times?" min="1" value="1">
+    </div>
+
+    <button id="start-btn" onclick="startWorkout()" style="margin-top:20px; display:none;">
+        Start Workout for Everyone
+    </button>
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const name = params.get('name');
+    let ws;
+
+    document.getElementById('session-code').textContent = code;
+
+    // Connect WebSocket
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/host`);
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'participants') {
+            const list = document.getElementById('participant-list');
+            list.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
+            if (data.names.length > 1) {
+                document.getElementById('start-btn').style.display = 'block';
+            }
+        }
+    };
+
+    // Add default interval rows
+    addInterval('1 min 80% Effort', 80, 60);
+    addInterval('1 min 20% Effort', 20, 60);
+
+    function addInterval(label = '', effort = 80, duration = 60) {
+        const container = document.getElementById('intervals-container');
+        const row = document.createElement('div');
+        row.className = 'interval-row';
+        row.innerHTML = `
+            <input type="text" placeholder="Label (e.g. Hard Effort)" value="${label}" style="flex:2">
+            <input type="number" placeholder="%" min="1" max="100" value="${effort}" style="flex:1" title="Effort %">
+            <input type="number" placeholder="Secs" min="1" value="${duration}" style="flex:1" title="Duration in seconds">
+            <button class="secondary" onclick="this.parentElement.remove()">&#10005;</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function buildIntervals() {
+        const rows = document.querySelectorAll('.interval-row');
+        const reps = parseInt(document.getElementById('reps').value) || 1;
+        const base = [];
+
+        rows.forEach(row => {
+            const inputs = row.querySelectorAll('input');
+            base.push({
+                label: inputs[0].value || 'Interval',
+                effort: parseInt(inputs[1].value) || 80,
+                duration: parseInt(inputs[2].value) || 60,
+            });
+        });
+
+        // Repeat the set for the number of reps
+        const intervals = [];
+        for (let i = 0; i < reps; i++) {
+            base.forEach(interval => {
+                intervals.push({ ...interval, rep: i + 1, totalReps: reps });
+            });
+        }
+        return intervals;
+    }
+
+    function startWorkout() {
+        const intervals = buildIntervals();
+        ws.send(JSON.stringify({ type: 'set_workout', intervals }));
+        ws.send(JSON.stringify({ type: 'start_workout' }));
+        window.location.href = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
+    }
+</script>
+</body>
+</html>

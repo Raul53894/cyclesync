@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CycleSync — Session</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="card">
+    <h1>CycleSync</h1>
+
+    <!-- Lobby (waiting) -->
+    <div id="lobby">
+        <p>Session: <strong id="lobby-code"></strong></p>
+        <h2>Waiting for host to start...</h2>
+        <div class="participant-list">
+            <ul id="participant-list"></ul>
+        </div>
+    </div>
+
+    <!-- Live workout -->
+    <div id="workout" class="hidden">
+        <div class="interval-label" id="interval-label"></div>
+        <div class="effort-label" id="effort-label"></div>
+        <div class="timer-ring" id="timer">0:00</div>
+        <div class="progress-bar-bg">
+            <div class="progress-bar" id="progress-bar" style="width:100%"></div>
+        </div>
+        <p class="status" id="interval-counter"></p>
+    </div>
+
+    <!-- Complete -->
+    <div id="complete" class="hidden">
+        <h2>Workout Complete!</h2>
+        <p class="status">Great ride, everyone!</p>
+        <button onclick="window.location.href='/'">Back to Home</button>
+    </div>
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const name = params.get('name');
+    const role = params.get('role') || 'attendee';
+
+    document.getElementById('lobby-code').textContent = code;
+
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/${role}`);
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'participants') {
+            const list = document.getElementById('participant-list');
+            list.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
+        }
+
+        if (data.type === 'interval_start') {
+            document.getElementById('lobby').classList.add('hidden');
+            document.getElementById('workout').classList.remove('hidden');
+
+            const repInfo = data.totalReps > 1
+                ? ` &mdash; Rep ${data.rep} of ${data.totalReps}`
+                : '';
+
+            document.getElementById('interval-label').innerHTML =
+                `Interval ${data.index + 1} of ${data.total}${repInfo}`;
+            document.getElementById('effort-label').textContent =
+                `${data.label} &mdash; ${data.effort}% Effort`;
+            document.getElementById('effort-label').textContent =
+                `${data.label} — ${data.effort}% Effort`;
+        }
+
+        if (data.type === 'tick') {
+            const mins = Math.floor(data.remaining / 60);
+            const secs = String(data.remaining % 60).padStart(2, '0');
+            document.getElementById('timer').textContent = `${mins}:${secs}`;
+
+            const pct = (data.remaining / data.duration) * 100;
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+        }
+
+        if (data.type === 'workout_complete') {
+            document.getElementById('workout').classList.add('hidden');
+            document.getElementById('complete').classList.remove('hidden');
+        }
+
+        if (data.type === 'error') {
+            alert(data.message);
+            window.location.href = '/';
+        }
+    };
+</script>
+</body>
+</html>
