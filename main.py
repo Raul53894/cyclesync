@@ -42,8 +42,6 @@ async def create_session():
         "ended": False,
         "current_interval": None,  # last interval_start payload, for late-joining clients
         "last_tick": None,         # last tick payload, for late-joining clients
-        "videos": [],              # list of YouTube video IDs for the session playlist
-        "video_counts": {},        # ws_id -> int, enforces per-user 10-link cap
     }
     return {"code": code}
 
@@ -69,8 +67,6 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
 
     # If a workout is already running, catch this client up immediately
     if session.get("started") and session.get("current_interval"):
-        if session["videos"]:
-            await websocket.send_text(json.dumps({"type": "playlist_update", "videos": session["videos"]}))
         await websocket.send_text(json.dumps(session["current_interval"]))
         if session.get("last_tick"):
             await websocket.send_text(json.dumps(session["last_tick"]))
@@ -107,16 +103,6 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
                 if session.get("pause_event"):
                     session["pause_event"].set()
                     await broadcast(session, {"type": "resumed"})
-
-            # User adds a video to the session playlist
-            elif data["type"] == "add_video":
-                vid_id = data.get("video_id")
-                if vid_id:
-                    count = session["video_counts"].get(ws_id, 0)
-                    if count < 10:
-                        session["video_counts"][ws_id] = count + 1
-                        session["videos"].append(vid_id)
-                        await broadcast(session, {"type": "playlist_update", "videos": session["videos"]})
 
             # Host ends the workout early
             elif data["type"] == "end":

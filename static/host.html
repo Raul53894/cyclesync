@@ -7,49 +7,30 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<div class="page-wrap">
+<div class="card">
+    <h1>You're the Host</h1>
+    <p>Share this code with your friends:</p>
+    <div class="code-display" id="session-code"></div>
+    <button class="secondary" onclick="shareSession()" style="margin-top:8px; width:auto; padding:10px 20px; font-size:0.8rem;">Share Link</button>
+    <p class="status">Waiting for riders to join...</p>
 
-    <!-- YouTube player (hidden until workout starts) -->
-    <div id="yt-container" class="hidden">
-        <div id="yt-player"></div>
-        <button class="secondary yt-unmute" id="yt-unmute-btn" onclick="toggleMute()">🔇 Unmute</button>
+    <div class="participant-list">
+        <ul id="participant-list"></ul>
     </div>
 
-    <div class="card">
-        <h1>You're the Host</h1>
-        <p>Share this code with your friends:</p>
-        <div class="code-display" id="session-code"></div>
-        <button class="secondary" onclick="shareSession()" style="margin-top:8px; width:auto; padding:10px 20px; font-size:0.8rem;">Share Link</button>
-        <p class="status">Waiting for riders to join...</p>
+    <hr style="border-color:#222; margin: 24px 0;">
+    <h2 style="text-align:left; margin-bottom:16px;">Build Your Workout</h2>
 
-        <div class="participant-list">
-            <ul id="participant-list"></ul>
-        </div>
+    <div id="intervals-container"></div>
+    <button class="secondary" onclick="addInterval()">+ Add Interval</button>
 
-        <!-- Video playlist -->
-        <div class="video-section">
-            <h3>Add to Playlist (up to 10)</h3>
-            <div class="interval-row">
-                <input type="text" id="video-url-input" placeholder="YouTube link" style="flex:1; margin-bottom:0;">
-                <button class="secondary" onclick="addVideo()" style="width:auto; margin-top:0; padding:12px 16px; min-height:48px;">Add</button>
-            </div>
-            <ul class="playlist-list" id="host-playlist"></ul>
-        </div>
-
-        <hr style="border-color:#222; margin: 24px 0;">
-        <h2 style="text-align:left; margin-bottom:16px;">Build Your Workout</h2>
-
-        <div id="intervals-container"></div>
-        <button class="secondary" onclick="addInterval()">+ Add Interval</button>
-
-        <div style="margin-top: 8px;">
-            <input type="number" id="reps" placeholder="Repeat set how many times?" min="1" value="1">
-        </div>
-
-        <button id="start-btn" onclick="startWorkout()" style="margin-top:20px; display:none;">
-            Start Workout for Everyone
-        </button>
+    <div style="margin-top: 8px;">
+        <input type="number" id="reps" placeholder="Repeat set how many times?" min="1" value="1">
     </div>
+
+    <button id="start-btn" onclick="startWorkout()" style="margin-top:20px; display:none;">
+        Start Workout for Everyone
+    </button>
 </div>
 
 <script>
@@ -60,7 +41,6 @@
 
     document.getElementById('session-code').textContent = code;
 
-    // Connect WebSocket
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
     ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/host`);
 
@@ -78,11 +58,6 @@
             if (data.names.length > 1) {
                 document.getElementById('start-btn').style.display = 'block';
             }
-        }
-
-        if (data.type === 'playlist_update') {
-            const list = document.getElementById('host-playlist');
-            if (list) list.innerHTML = data.videos.map((id, i) => `<li>&#9654; Video ${i + 1}</li>`).join('');
         }
     };
 
@@ -116,7 +91,6 @@
             });
         });
 
-        // Repeat the set for the number of reps
         const intervals = [];
         for (let i = 0; i < reps; i++) {
             base.forEach(interval => {
@@ -148,33 +122,6 @@
             });
         }
     }
-
-    function extractVideoId(url) {
-        const patterns = [
-            /[?&]v=([a-zA-Z0-9_-]{11})/,
-            /youtu\.be\/([a-zA-Z0-9_-]{11})/,
-            /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
-            /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-        ];
-        for (const p of patterns) {
-            const m = url.match(p);
-            if (m) return m[1];
-        }
-        return null;
-    }
-
-    function addVideo() {
-        const input = document.getElementById('video-url-input');
-        const videoId = extractVideoId(input.value.trim());
-        if (!videoId) return alert('Please enter a valid YouTube link');
-        if (!ws || ws.readyState !== WebSocket.OPEN) return alert('Still connecting, try again in a moment');
-        ws.send(JSON.stringify({ type: 'add_video', video_id: videoId }));
-        input.value = '';
-    }
-
-    document.getElementById('video-url-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') addVideo();
-    });
 </script>
 </body>
 </html>
