@@ -67,6 +67,11 @@
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
+        if (data.type === 'starting') {
+            window.location.href = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
+            return;
+        }
+
         if (data.type === 'participants') {
             const list = document.getElementById('participant-list');
             list.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
@@ -125,7 +130,7 @@
         const intervals = buildIntervals();
         ws.send(JSON.stringify({ type: 'set_workout', intervals }));
         ws.send(JSON.stringify({ type: 'start_workout' }));
-        window.location.href = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
+        // Navigation happens when server confirms with "starting" message
     }
 
     function shareSession() {

@@ -93,6 +93,8 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
                 session["pause_event"] = asyncio.Event()
                 session["pause_event"].set()  # start in running state
                 asyncio.create_task(run_workout(session))
+                # Tell the host to navigate now that the server has the workout
+                await websocket.send_text(json.dumps({"type": "starting"}))
 
             # Host pauses the workout
             elif data["type"] == "pause":
