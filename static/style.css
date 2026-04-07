@@ -504,6 +504,102 @@ button.danger:active {
     animation: floatUp 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
+/* Reconnect banner */
+.reconnect-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-align: center;
+    padding: 10px;
+    z-index: 1000;
+}
+
+/* Session name */
+.session-name {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+}
+
+/* Theme toggle + copy log */
+.toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.icon-btn {
+    background: none;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 1rem;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    min-height: unset;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, color 0.15s;
+    box-shadow: none;
+}
+
+.icon-btn:hover { border-color: var(--green); color: var(--green); filter: none; box-shadow: none; transform: none; }
+.icon-btn:active { transform: scale(0.93); }
+
+/* Light mode */
+[data-theme="light"] {
+    --bg: #f4f4f4;
+    --card-bg: #ffffff;
+    --card-border: #ddd;
+    --text: #111;
+    --muted: #666;
+    --green: #00b84a;
+    --green-dark: #009c3e;
+    --green-glow: rgba(0, 184, 74, 0.2);
+}
+
+[data-theme="light"] body {
+    background: #f4f4f4;
+    background-image: radial-gradient(ellipse at 50% 0%, #e6f7ec 0%, #f4f4f4 70%);
+}
+
+[data-theme="light"] input,
+[data-theme="light"] select {
+    background: #fff;
+    border-color: #ccc;
+    color: #111;
+}
+
+[data-theme="light"] .block,
+[data-theme="light"] .participants-modal { background: #f9f9f9; border-color: #ddd; }
+
+[data-theme="light"] .ring-track { stroke: #ddd; }
+
+[data-theme="light"] button.secondary {
+    background: #eee;
+    color: #333;
+    border-color: #ccc;
+}
+
+[data-theme="light"] button.secondary:hover { background: #e0e0e0; color: #111; }
+
+[data-theme="light"] .emoji-btn { background: #eee; border-color: #ddd; }
+[data-theme="light"] .emoji-btn:hover { background: #e0e0e0; }
+
+[data-theme="light"] .reconnect-banner { background: #fff; border-color: #ccc; }
+
 /* Mobile */
 @media (max-width: 480px) {
     body { padding: 12px; align-items: flex-start; padding-top: 24px; }

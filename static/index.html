@@ -8,6 +8,9 @@
 </head>
 <body>
 <div class="card">
+    <div class="toolbar">
+        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">☀️</button>
+    </div>
     <h1>CycleSync</h1>
     <h2>Synchronized cycling workouts with friends</h2>
 
@@ -20,12 +23,28 @@
 
     <div id="host-section" class="hidden">
         <input type="text" id="host-name" placeholder="Your name (host)">
+        <input type="text" id="session-name-input" placeholder="Session name (optional, e.g. Morning Ride)">
         <button onclick="createSession()">Create Session</button>
         <button class="secondary" onclick="showJoin()">Back</button>
     </div>
 </div>
 
 <script>
+    // Apply saved theme on load
+    const savedTheme = localStorage.getItem('cyclesync-theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('theme-btn').textContent = '🌙';
+    }
+
+    function toggleTheme() {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const next = isLight ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next === 'dark' ? '' : 'light');
+        document.getElementById('theme-btn').textContent = next === 'light' ? '🌙' : '☀️';
+        localStorage.setItem('cyclesync-theme', next);
+    }
+
     function showHost() {
         document.getElementById('join-section').classList.add('hidden');
         document.getElementById('host-section').classList.remove('hidden');
@@ -39,10 +58,13 @@
     async function createSession() {
         const name = document.getElementById('host-name').value.trim();
         if (!name) return alert('Please enter your name');
+        const sessionName = document.getElementById('session-name-input').value.trim();
 
         const res = await fetch('/create-session', { method: 'POST' });
         const data = await res.json();
-        window.location.href = `/host?code=${data.code}&name=${encodeURIComponent(name)}`;
+        let url = `/host?code=${data.code}&name=${encodeURIComponent(name)}`;
+        if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
+        window.location.href = url;
     }
 
     function joinSession() {

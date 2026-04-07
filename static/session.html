@@ -7,8 +7,17 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+
+<!-- Reconnect banner (hidden when connected) -->
+<div id="reconnect-banner" class="reconnect-banner hidden">⟳ Reconnecting...</div>
+
 <div class="card">
+    <div class="toolbar">
+        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">☀️</button>
+        <button class="icon-btn hidden" id="copy-log-btn" onclick="copySessionLog()" title="Copy session log">📋</button>
+    </div>
     <h1>CycleSync</h1>
+    <div id="session-name-display" class="session-name hidden"></div>
 
     <!-- Name entry (used when joining via shared link) -->
     <div id="name-entry" class="hidden">
@@ -106,20 +115,90 @@
     const code = params.get('code');
     let name = params.get('name');
     const role = params.get('role') || 'attendee';
+    const sessionName = params.get('session') || '';
     let isPaused = false;
     let currentDuration = 60;
     const CIRCUMFERENCE = 565.5;
     let participantsExpanded = false;
     let ws;
+    let shouldReconnect = true;
+    let reconnectTimer = null;
     let completedIntervals = [];
     let sessionStartTime = null;
+    let currentParticipants = [];
+    let audioCtx = null;
+
+    // Apply saved theme
+    const savedTheme = localStorage.getItem('cyclesync-theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('theme-btn').textContent = '🌙';
+    }
+
+    function toggleTheme() {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const next = isLight ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next === 'dark' ? '' : 'light');
+        document.getElementById('theme-btn').textContent = next === 'light' ? '🌙' : '☀️';
+        localStorage.setItem('cyclesync-theme', next);
+    }
 
     document.getElementById('lobby-code').textContent = code;
 
+    if (sessionName) {
+        const el = document.getElementById('session-name-display');
+        el.textContent = sessionName;
+        el.classList.remove('hidden');
+    }
+
+    // ── Audio ──────────────────────────────────────────────────────────────
+    function getAudioCtx() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return audioCtx;
+    }
+
+    function playBeep(freq = 880, duration = 0.15, volume = 0.3) {
+        try {
+            const ctx = getAudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(volume, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + duration);
+        } catch (e) {}
+    }
+
+    // Double beep for interval start, single low beep for 3-second warning
+    function beepIntervalStart() {
+        playBeep(880, 0.12);
+        setTimeout(() => playBeep(1100, 0.18, 0.4), 160);
+    }
+
+    function beepWarning() {
+        playBeep(660, 0.1, 0.2);
+    }
+
+    // ── WebSocket ──────────────────────────────────────────────────────────
     function connect() {
+        if (!name) return;
+        clearTimeout(reconnectTimer);
         const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
         ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/${role}`);
         ws.onmessage = handleMessage;
+        ws.onopen = () => {
+            document.getElementById('reconnect-banner').classList.add('hidden');
+        };
+        ws.onclose = () => {
+            if (shouldReconnect) {
+                document.getElementById('reconnect-banner').classList.remove('hidden');
+                reconnectTimer = setTimeout(connect, 3000);
+            }
+        };
+        ws.onerror = () => { ws.close(); };
     }
 
     if (!name) {
@@ -142,10 +221,12 @@
         if (e.key === 'Enter') submitName();
     });
 
+    // ── Message handler ────────────────────────────────────────────────────
     function handleMessage(event) {
         const data = JSON.parse(event.data);
 
         if (data.type === 'participants') {
+            currentParticipants = data.names;
             const lobbyList = document.getElementById('participant-list');
             if (lobbyList) lobbyList.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
             const workoutList = document.getElementById('workout-participant-list');
@@ -161,30 +242,27 @@
             el.style.animation = 'none';
             void el.offsetWidth;
             el.style.animation = '';
+            if (data.count <= 3) playBeep(660, 0.1, 0.25);
         }
 
         if (data.type === 'interval_start') {
-            // Hide block-break screen if transitioning from one
             document.getElementById('block-break').classList.add('hidden');
             document.getElementById('continue-btn').classList.add('hidden');
             document.getElementById('countdown-display').classList.add('hidden');
             document.getElementById('lobby').classList.add('hidden');
             document.getElementById('workout').classList.remove('hidden');
 
-            // Track stats
             if (data.index === 0) sessionStartTime = Date.now();
             completedIntervals.push({ label: data.label, effort: data.effort, duration: data.duration, block: data.block ?? 0 });
+
+            beepIntervalStart();
 
             if (role === 'host') {
                 document.getElementById('host-controls').classList.remove('hidden');
             }
 
-            const repInfo = data.totalReps > 1
-                ? ` — Rep ${data.rep} of ${data.totalReps}`
-                : '';
-
-            document.getElementById('interval-label').textContent =
-                `Interval ${data.index + 1} of ${data.total}${repInfo}`;
+            const repInfo = data.totalReps > 1 ? ` — Rep ${data.rep} of ${data.totalReps}` : '';
+            document.getElementById('interval-label').textContent = `Interval ${data.index + 1} of ${data.total}${repInfo}`;
             document.getElementById('effort-label').textContent = data.label;
             document.getElementById('effort-pct').textContent = `${data.effort}% Effort`;
 
@@ -210,20 +288,16 @@
 
             const fraction = data.remaining / (data.duration || currentDuration);
             document.getElementById('ring-progress').style.strokeDashoffset = CIRCUMFERENCE * (1 - fraction);
+
+            if (data.remaining === 3) beepWarning();
         }
 
-        if (data.type === 'paused') {
-            setPaused(true);
-        }
-
-        if (data.type === 'resumed') {
-            setPaused(false);
-        }
+        if (data.type === 'paused') { setPaused(true); }
+        if (data.type === 'resumed') { setPaused(false); }
 
         if (data.type === 'block_complete') {
             document.getElementById('workout').classList.add('hidden');
-            const breakEl = document.getElementById('block-break');
-            breakEl.classList.remove('hidden');
+            document.getElementById('block-break').classList.remove('hidden');
             document.getElementById('block-break-heading').textContent =
                 `Block ${data.block} of ${data.totalBlocks} Complete!`;
             if (role === 'host') {
@@ -232,24 +306,26 @@
         }
 
         if (data.type === 'workout_complete') {
+            shouldReconnect = false;
             renderStats();
             document.getElementById('workout').classList.add('hidden');
             document.getElementById('block-break').classList.add('hidden');
+            document.getElementById('copy-log-btn').classList.remove('hidden');
             const completeEl = document.getElementById('complete');
             completeEl.classList.remove('hidden');
             completeEl.classList.add('section-enter');
         }
 
-        if (data.type === 'emote') {
-            showFloatingEmoji(data.emoji);
-        }
+        if (data.type === 'emote') { showFloatingEmoji(data.emoji); }
 
         if (data.type === 'error') {
+            shouldReconnect = false;
             alert(data.message);
             window.location.href = '/';
         }
     }
 
+    // ── Controls ───────────────────────────────────────────────────────────
     function setPaused(paused) {
         isPaused = paused;
         const badge = document.getElementById('status-badge');
@@ -282,8 +358,11 @@
         document.getElementById('continue-btn').classList.add('hidden');
     }
 
+    // ── Emoji ──────────────────────────────────────────────────────────────
     function sendEmote(emoji) {
-        ws.send(JSON.stringify({ type: 'emote', emoji }));
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'emote', emoji }));
+        }
     }
 
     function showFloatingEmoji(emoji) {
@@ -295,12 +374,12 @@
         setTimeout(() => el.remove(), 2200);
     }
 
+    // ── Stats ──────────────────────────────────────────────────────────────
     function renderStats() {
         const totalSecs = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
         const mins = Math.floor(totalSecs / 60);
         const secs = String(totalSecs % 60).padStart(2, '0');
 
-        // Group intervals by block
         const blockGroups = [];
         let lastBlock = -1;
         for (const iv of completedIntervals) {
@@ -308,7 +387,6 @@
             blockGroups[blockGroups.length - 1].push(iv);
         }
 
-        // Build block-separated bar chart
         const W = 420, H = 100, BLOCK_GAP = 14, BAR_GAP = 3;
         const n = completedIntervals.length;
         const numBlocks = blockGroups.length;
@@ -329,11 +407,8 @@
 
         const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:12px 0;">${rects.join('')}</svg>`;
 
-        // Interval list with block headings
         const listRows = blockGroups.map((group, bi) => {
-            const header = numBlocks > 1
-                ? `<li class="stats-block-header"><span>Block ${bi + 1}</span></li>`
-                : '';
+            const header = numBlocks > 1 ? `<li class="stats-block-header"><span>Block ${bi + 1}</span></li>` : '';
             const rows = group.map(iv =>
                 `<li><span>${iv.label}</span><span><span>${iv.effort}%</span><span>${iv.duration}s</span></span></li>`
             ).join('');
@@ -349,6 +424,39 @@
                 <ul class="stats-list">${listRows}</ul>
                 <div class="stats-total">Total time: ${mins}m ${secs}s</div>
             </div>`;
+    }
+
+    // ── Session log ────────────────────────────────────────────────────────
+    function copySessionLog() {
+        const totalSecs = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
+        const mins = Math.floor(totalSecs / 60);
+        const secs = String(totalSecs % 60).padStart(2, '0');
+
+        const lines = [];
+        if (sessionName) lines.push(`Session: ${sessionName}`);
+        lines.push(`Code: ${code}`);
+        lines.push(`Participants: ${currentParticipants.join(', ')}`);
+        lines.push(`Total time: ${mins}m ${secs}s`);
+        lines.push('');
+
+        const blockGroups = [];
+        let lastBlock = -1;
+        for (const iv of completedIntervals) {
+            if (iv.block !== lastBlock) { blockGroups.push([]); lastBlock = iv.block; }
+            blockGroups[blockGroups.length - 1].push(iv);
+        }
+
+        blockGroups.forEach((group, bi) => {
+            if (blockGroups.length > 1) lines.push(`Block ${bi + 1}`);
+            group.forEach(iv => lines.push(`  ${iv.label} — ${iv.effort}% effort, ${iv.duration}s`));
+            lines.push('');
+        });
+
+        navigator.clipboard.writeText(lines.join('\n')).then(() => {
+            const btn = document.getElementById('copy-log-btn');
+            btn.textContent = '✓';
+            setTimeout(() => { btn.textContent = '📋'; }, 2000);
+        });
     }
 </script>
 </body>

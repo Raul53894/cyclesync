@@ -8,7 +8,11 @@
 </head>
 <body>
 <div class="card">
+    <div class="toolbar">
+        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">☀️</button>
+    </div>
     <h1>You're the Host</h1>
+    <div id="session-name-display" class="session-name hidden"></div>
     <p>Share this code with your friends:</p>
     <div class="code-display" id="session-code"></div>
     <button class="secondary" onclick="shareSession()" style="margin-top:8px; width:auto; padding:10px 20px; font-size:0.8rem;">Share Link</button>
@@ -33,9 +37,31 @@
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
     const name = params.get('name');
+    const sessionName = params.get('session') || '';
     let ws;
 
+    // Apply saved theme
+    const savedTheme = localStorage.getItem('cyclesync-theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('theme-btn').textContent = '🌙';
+    }
+
+    function toggleTheme() {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const next = isLight ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next === 'dark' ? '' : 'light');
+        document.getElementById('theme-btn').textContent = next === 'light' ? '🌙' : '☀️';
+        localStorage.setItem('cyclesync-theme', next);
+    }
+
     document.getElementById('session-code').textContent = code;
+
+    if (sessionName) {
+        const el = document.getElementById('session-name-display');
+        el.textContent = sessionName;
+        el.classList.remove('hidden');
+    }
 
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
     ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/host`);
@@ -44,7 +70,9 @@
         const data = JSON.parse(event.data);
 
         if (data.type === 'starting') {
-            window.location.href = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
+            let url = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
+            if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
+            window.location.href = url;
             return;
         }
 
@@ -134,11 +162,11 @@
         const intervals = buildIntervals();
         ws.send(JSON.stringify({ type: 'set_workout', intervals }));
         ws.send(JSON.stringify({ type: 'start_workout' }));
-        // Navigation happens when server confirms with "starting" message
     }
 
     function shareSession() {
-        const url = `${location.origin}/session?code=${code}&name=`;
+        let url = `${location.origin}/session?code=${code}&name=`;
+        if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
         const shareData = {
             title: 'CycleSync — Join my workout',
             text: `Join my CycleSync session! Use code ${code} or tap the link and enter your name.`,
