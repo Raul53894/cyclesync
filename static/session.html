@@ -14,7 +14,6 @@
 <div class="card">
     <div class="toolbar">
         <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">☀️</button>
-        <button class="icon-btn hidden" id="copy-log-btn" onclick="copySessionLog()" title="Copy session log">📋</button>
     </div>
     <h1>CycleSync</h1>
     <div id="session-name-display" class="session-name hidden"></div>
@@ -106,7 +105,8 @@
         <h2>Workout Complete!</h2>
         <p class="status">Great ride, everyone!</p>
         <div id="stats-container"></div>
-        <button onclick="window.location.href='/'" style="margin-top:16px;">Back to Home</button>
+        <button id="copy-log-btn" class="btn-outline hidden" onclick="copySessionLog()" style="margin-top:16px;">📋 Copy Session Log</button>
+        <button onclick="window.location.href='/'" style="margin-top:8px;">Back to Home</button>
     </div>
 </div>
 
@@ -123,6 +123,19 @@
     let ws;
     let shouldReconnect = true;
     let reconnectTimer = null;
+    let pingTimer = null;
+
+    function startPing() {
+        pingTimer = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, 25000);
+    }
+    function stopPing() {
+        clearInterval(pingTimer);
+        pingTimer = null;
+    }
     let completedIntervals = [];
     let sessionStartTime = null;
     let currentParticipants = [];
@@ -191,8 +204,10 @@
         ws.onmessage = handleMessage;
         ws.onopen = () => {
             document.getElementById('reconnect-banner').classList.add('hidden');
+            startPing();
         };
         ws.onclose = () => {
+            stopPing();
             if (shouldReconnect) {
                 document.getElementById('reconnect-banner').classList.remove('hidden');
                 reconnectTimer = setTimeout(connect, 3000);
@@ -252,7 +267,10 @@
             document.getElementById('lobby').classList.add('hidden');
             document.getElementById('workout').classList.remove('hidden');
 
-            if (data.index === 0) sessionStartTime = Date.now();
+            if (data.index === 0) {
+                sessionStartTime = Date.now();
+                if (sessionName) document.querySelector('h1').textContent = sessionName;
+            }
             completedIntervals.push({ label: data.label, effort: data.effort, duration: data.duration, block: data.block ?? 0 });
 
             beepIntervalStart();
@@ -282,6 +300,7 @@
         }
 
         if (data.type === 'tick') {
+            if (data.ts && Date.now() - data.ts > 2000) return;
             const mins = Math.floor(data.remaining / 60);
             const secs = String(data.remaining % 60).padStart(2, '0');
             document.getElementById('timer').textContent = `${mins}:${secs}`;
@@ -307,10 +326,13 @@
 
         if (data.type === 'workout_complete') {
             shouldReconnect = false;
+            stopPing();
             renderStats();
             document.getElementById('workout').classList.add('hidden');
             document.getElementById('block-break').classList.add('hidden');
-            document.getElementById('copy-log-btn').classList.remove('hidden');
+            if (role === 'host') {
+                document.getElementById('copy-log-btn').classList.remove('hidden');
+            }
             const completeEl = document.getElementById('complete');
             completeEl.classList.remove('hidden');
             completeEl.classList.add('section-enter');

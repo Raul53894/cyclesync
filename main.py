@@ -5,6 +5,7 @@ import asyncio
 import random
 import string
 import json
+import time
 
 app = FastAPI()
 
@@ -110,6 +111,10 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
                 if session.get("block_event"):
                     session["block_event"].set()
 
+            # Keepalive ping from client
+            elif data["type"] == "ping":
+                await websocket.send_text(json.dumps({"type": "pong"}))
+
             # Emoji reaction — broadcast to all clients
             elif data["type"] == "emote":
                 emoji = data.get("emoji", "")
@@ -196,7 +201,7 @@ async def run_workout(session):
                 await session["pause_event"].wait()
                 if session.get("ended"):
                     return
-                tick_msg = {"type": "tick", "remaining": remaining, "duration": duration}
+                tick_msg = {"type": "tick", "remaining": remaining, "duration": duration, "ts": int(time.time() * 1000)}
                 session["last_tick"] = tick_msg
                 await broadcast(session, tick_msg)
                 await asyncio.sleep(1)
