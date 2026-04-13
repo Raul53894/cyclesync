@@ -7,21 +7,40 @@
   <link rel="stylesheet" href="/static/style.css?v=3" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    .auth-tabs { display: flex; gap: 0; margin-bottom: 28px; border-bottom: 2px solid var(--card-border); }
+    .auth-card { max-width: 500px; margin: 0 auto; width: 100%; }
+
+    .auth-tabs {
+      display: flex;
+      margin: -40px -40px 32px -40px;
+      border-bottom: 2px solid var(--card-border);
+    }
     .auth-tab {
-      flex: 1; padding: 12px; background: none; border: none; cursor: pointer;
-      font-size: 0.95rem; font-weight: 600; color: var(--muted);
-      border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.2s;
+      flex: 1; padding: 16px; background: none; border: none; cursor: pointer;
+      font-size: 1rem; font-weight: 600; color: var(--muted); letter-spacing: 0.5px;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: color 0.2s, border-color 0.2s; min-height: unset;
     }
     .auth-tab.active { color: var(--green); border-bottom-color: var(--green); }
-    .auth-tab:hover:not(.active) { color: var(--text); }
+    .auth-tab:hover:not(.active) { color: var(--text); background: none; }
+
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.5px; }
+
     .auth-error {
       background: rgba(255, 26, 26, 0.1); border: 1px solid var(--danger);
-      color: var(--danger); padding: 10px 14px; border-radius: 8px;
-      font-size: 0.88rem; margin-bottom: 16px; display: none;
+      color: var(--danger); padding: 12px 16px; border-radius: 8px;
+      font-size: 0.9rem; margin-bottom: 20px; display: none;
     }
     .auth-error.visible { display: block; }
-    .divider { text-align: center; color: var(--muted); font-size: 0.8rem; margin: 8px 0 4px; }
+
+    .auth-footer { text-align: center; color: var(--muted); font-size: 0.88rem; margin-top: 20px; }
+    .auth-footer a { color: var(--green); text-decoration: none; }
+    .auth-footer a:hover { text-decoration: underline; }
+
+    .confirm-box { text-align: center; padding: 24px 0 8px; }
+    .confirm-box .icon { font-size: 2.5rem; margin-bottom: 16px; }
+    .confirm-box p { color: var(--muted); font-size: 0.92rem; margin-top: 10px; line-height: 1.6; }
+    .confirm-box strong { color: var(--text); }
   </style>
 </head>
 <body>
@@ -30,11 +49,11 @@
     <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">💡</button>
   </div>
 
-  <div class="container" style="max-width: 420px;">
-    <h1>CYCLE<span style="color: var(--text)">SYNC</span></h1>
-    <p class="subtitle" style="margin-bottom: 28px;">Ride together, wherever you are.</p>
+  <div style="padding: 20px 16px 60px; display: flex; flex-direction: column; align-items: center;">
+    <h1 style="margin-bottom: 6px;">CYCLE<span style="color: var(--text)">SYNC</span></h1>
+    <p style="color: var(--muted); margin-bottom: 36px; font-size: 0.95rem;">Ride together, wherever you are.</p>
 
-    <div class="card">
+    <div class="card auth-card">
       <div class="auth-tabs">
         <button class="auth-tab active" id="tab-login" onclick="showTab('login')">Log In</button>
         <button class="auth-tab" id="tab-signup" onclick="showTab('signup')">Sign Up</button>
@@ -44,49 +63,63 @@
 
       <!-- Login form -->
       <form id="form-login" onsubmit="handleLogin(event)">
-        <div class="form-group">
-          <label class="label">Email</label>
-          <input class="input" id="login-email" type="email" placeholder="you@example.com" required autocomplete="email" />
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="you@example.com" required autocomplete="email" />
         </div>
-        <div class="form-group">
-          <label class="label">Password</label>
-          <input class="input" id="login-password" type="password" placeholder="••••••••" required autocomplete="current-password" />
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
         </div>
-        <button class="btn btn-primary" type="submit" id="btn-login" style="width: 100%; margin-top: 8px;">Log In</button>
-        <p class="divider" style="margin-top: 16px;">New here? <a href="#" onclick="showTab('signup'); return false;" style="color: var(--green);">Create an account</a></p>
+        <button type="submit" id="btn-login" style="width: 100%; margin-top: 4px;">Log In</button>
+        <p class="auth-footer">New here? <a href="#" onclick="showTab('signup'); return false;">Create an account</a></p>
       </form>
 
       <!-- Sign up form -->
-      <form id="form-signup" onsubmit="handleSignup(event)" style="display: none;">
-        <div class="form-group">
-          <label class="label">Display Name</label>
-          <input class="input" id="signup-name" type="text" placeholder="Your name (shown to other riders)" required autocomplete="name" />
+      <div id="form-signup" style="display: none;">
+        <form id="signup-form" onsubmit="handleSignup(event)">
+          <div class="field">
+            <label>Display Name</label>
+            <input type="text" id="signup-name" placeholder="Your name (shown to other riders)" required autocomplete="name" />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="signup-email" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="signup-password" placeholder="Min. 6 characters" required autocomplete="new-password" minlength="6" />
+          </div>
+          <button type="submit" id="btn-signup" style="width: 100%; margin-top: 4px;">Create Account</button>
+          <p class="auth-footer">Already have an account? <a href="#" onclick="showTab('login'); return false;">Log in</a></p>
+        </form>
+        <div id="signup-confirm" class="confirm-box" style="display: none;">
+          <div class="icon">📧</div>
+          <p style="color: var(--text); font-weight: 600; font-size: 1rem;">Check your email</p>
+          <p>We sent a confirmation link to <strong id="confirm-email"></strong>.<br/>Click it to activate your account, then log in.</p>
+          <button class="secondary" onclick="showTab('login')" style="margin-top: 24px; width: 100%;">Back to Log In</button>
         </div>
-        <div class="form-group">
-          <label class="label">Email</label>
-          <input class="input" id="signup-email" type="email" placeholder="you@example.com" required autocomplete="email" />
-        </div>
-        <div class="form-group">
-          <label class="label">Password</label>
-          <input class="input" id="signup-password" type="password" placeholder="Min. 6 characters" required autocomplete="new-password" minlength="6" />
-        </div>
-        <button class="btn btn-primary" type="submit" id="btn-signup" style="width: 100%; margin-top: 8px;">Create Account</button>
-        <p class="divider" style="margin-top: 16px;">Already have an account? <a href="#" onclick="showTab('login'); return false;" style="color: var(--green);">Log in</a></p>
-      </form>
+      </div>
     </div>
   </div>
 
   <script>
-    let supabase = null;
+    let _supabase = null;
 
     async function initSupabase() {
-      const res = await fetch('/config');
-      const cfg = await res.json();
-      supabase = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
-
-      // If already logged in, redirect home
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) window.location.href = '/';
+      try {
+        const res = await fetch('/config');
+        const cfg = await res.json();
+        if (!cfg.supabase_url || !cfg.supabase_anon_key) {
+          showError('Auth is not configured yet. Check that SUPABASE_ANON_KEY is set in your environment.');
+          return;
+        }
+        _supabase = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session) window.location.href = '/';
+      } catch (e) {
+        showError('Could not connect to auth service. Please try again.');
+      }
     }
 
     initSupabase();
@@ -109,53 +142,54 @@
       document.getElementById('error-msg').classList.remove('visible');
     }
 
-    function setLoading(btnId, loading) {
+    function setLoading(btnId, loading, label) {
       const btn = document.getElementById(btnId);
       btn.disabled = loading;
-      btn.textContent = loading ? 'Please wait...' : (btnId === 'btn-login' ? 'Log In' : 'Create Account');
+      btn.textContent = loading ? 'Please wait...' : label;
     }
 
     async function handleLogin(e) {
       e.preventDefault();
+      if (!_supabase) { showError('Auth service is not ready. Please refresh the page.'); return; }
       hideError();
-      setLoading('btn-login', true);
-      const email = document.getElementById('login-email').value.trim();
-      const password = document.getElementById('login-password').value;
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        showError(error.message);
-        setLoading('btn-login', false);
-      } else {
-        window.location.href = '/';
+      setLoading('btn-login', true, 'Log In');
+      try {
+        const { error } = await _supabase.auth.signInWithPassword({
+          email: document.getElementById('login-email').value.trim(),
+          password: document.getElementById('login-password').value,
+        });
+        if (error) { showError(error.message); setLoading('btn-login', false, 'Log In'); }
+        else window.location.href = '/';
+      } catch (e) {
+        showError('Something went wrong. Please try again.');
+        setLoading('btn-login', false, 'Log In');
       }
     }
 
     async function handleSignup(e) {
       e.preventDefault();
+      if (!_supabase) { showError('Auth service is not ready. Please refresh the page.'); return; }
       hideError();
-      setLoading('btn-signup', true);
+      setLoading('btn-signup', true, 'Create Account');
       const name = document.getElementById('signup-name').value.trim();
       const email = document.getElementById('signup-email').value.trim();
       const password = document.getElementById('signup-password').value;
-      const { error } = await supabase.auth.signUp({
-        email, password,
-        options: { data: { full_name: name } },
-      });
-      if (error) {
-        showError(error.message);
-        setLoading('btn-signup', false);
-      } else {
-        // Show confirmation message
-        document.getElementById('form-signup').innerHTML =
-          `<div style="text-align:center; padding: 16px 0;">
-            <div style="font-size: 2rem; margin-bottom: 12px;">📧</div>
-            <p style="color: var(--text); font-weight: 600;">Check your email</p>
-            <p style="color: var(--muted); font-size: 0.9rem; margin-top: 8px;">
-              We sent a confirmation link to <strong>${email}</strong>.<br/>
-              Click it to activate your account, then log in.
-            </p>
-            <button class="btn" onclick="showTab('login')" style="margin-top: 20px;">Back to Log In</button>
-          </div>`;
+      try {
+        const { error } = await _supabase.auth.signUp({
+          email, password,
+          options: { data: { full_name: name } },
+        });
+        if (error) {
+          showError(error.message);
+          setLoading('btn-signup', false, 'Create Account');
+        } else {
+          document.getElementById('signup-form').style.display = 'none';
+          document.getElementById('confirm-email').textContent = email;
+          document.getElementById('signup-confirm').style.display = '';
+        }
+      } catch (e) {
+        showError('Something went wrong. Please try again.');
+        setLoading('btn-signup', false, 'Create Account');
       }
     }
 
