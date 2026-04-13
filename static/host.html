@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CycleSync — Host</title>
     <link rel="stylesheet" href="/static/style.css?v=3">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="preset-tooltip-overlay" onclick="closePresetTooltip()">
@@ -49,6 +50,7 @@
     const code = params.get('code');
     const name = params.get('name');
     const sessionName = params.get('session') || '';
+    const token = params.get('token') || '';
     let ws;
     let selectedPreset = null;
 
@@ -58,6 +60,19 @@
         document.documentElement.setAttribute('data-theme', 'light');
         document.getElementById('theme-btn').textContent = '💡';
     }
+
+    // Auth guard — redirect to /auth if not logged in
+    async function checkAuth() {
+        try {
+            const res = await fetch('/config');
+            const cfg = await res.json();
+            if (!cfg.supabase_url) return; // auth not configured, skip
+            const sb = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+            const { data } = await sb.auth.getSession();
+            if (!data.session) window.location.href = '/auth';
+        } catch (e) { /* auth unavailable, continue */ }
+    }
+    checkAuth();
 
     function toggleTheme() {
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -76,7 +91,8 @@
     }
 
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/host`);
+    const wsToken = token ? `?token=${encodeURIComponent(token)}` : '';
+    ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/host${wsToken}`);
 
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
@@ -84,6 +100,7 @@
         if (data.type === 'starting') {
             let url = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
             if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
+            if (token) url += `&token=${encodeURIComponent(token)}`;
             window.location.href = url;
             return;
         }

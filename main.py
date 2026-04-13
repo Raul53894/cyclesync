@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import asyncio
@@ -13,6 +13,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI()
+
+@app.get("/config")
+async def config():
+    return {
+        "supabase_url": os.getenv("SUPABASE_URL", ""),
+        "supabase_anon_key": os.getenv("SUPABASE_ANON_KEY", ""),
+    }
 
 # Supabase client — initialised only when env vars are present
 _supabase = None
@@ -43,11 +50,18 @@ async def host_page():
 async def session_page():
     return FileResponse("static/session.html")
 
+@app.get("/auth")
+async def auth_page():
+    return FileResponse("static/auth.html")
+
 @app.post("/create-session")
-async def create_session():
+async def create_session(request: Request):
+    token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    user = await get_user_from_token(token)
     code = generate_code()
     sessions[code] = {
         "code": code,
+        "owner_id": user.id if user else None,
         "host": None,
         "host_name": None,
         "clients": [],          # list of websockets
@@ -65,7 +79,7 @@ async def create_session():
     return {"code": code}
 
 @app.websocket("/ws/{code}/{name}/{role}")
-async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: str):
+async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: str, token: str = ""):
     await websocket.accept()
 
     if code not in sessions:
@@ -74,6 +88,15 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
         return
 
     session = sessions[code]
+
+    # Validate host ownership if the session has an owner
+    if role == "host" and session.get("owner_id"):
+        user = await get_user_from_token(token)
+        if not user or user.id != session["owner_id"]:
+            await websocket.send_text(json.dumps({"type": "error", "message": "Not authorised as host"}))
+            await websocket.close()
+            return
+
     session["clients"].append(websocket)
     ws_id = id(websocket)
     session["names"][ws_id] = name
@@ -173,6 +196,17 @@ async def broadcast_participants(session):
             seen.add(n)
             names.append(n)
     await broadcast(session, {"type": "participants", "names": names})
+
+async def get_user_from_token(token: str):
+    """Returns Supabase user object or None if token is invalid/missing."""
+    if not _supabase or not token:
+        return None
+    try:
+        response = await asyncio.to_thread(lambda: _supabase.auth.get_user(token))
+        return response.user
+    except Exception:
+        return None
+
 
 async def save_session_to_db(session):
     if not _supabase:

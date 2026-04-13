@@ -116,6 +116,7 @@
     let name = params.get('name');
     const role = params.get('role') || 'attendee';
     const sessionName = params.get('session') || '';
+    const token = params.get('token') || '';
     let isPaused = false;
     let currentDuration = 60;
     const CIRCUMFERENCE = 565.5;
@@ -201,7 +202,8 @@
         if (!name) return;
         clearTimeout(reconnectTimer);
         const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/${role}`);
+        const wsToken = token ? `?token=${encodeURIComponent(token)}` : '';
+        ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/${role}${wsToken}`);
         ws.onmessage = handleMessage;
         ws.onopen = () => {
             document.getElementById('reconnect-banner').classList.add('hidden');

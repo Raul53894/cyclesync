@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CycleSync — Sign In</title>
+  <link rel="stylesheet" href="/static/style.css?v=3" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .auth-tabs { display: flex; gap: 0; margin-bottom: 28px; border-bottom: 2px solid var(--card-border); }
+    .auth-tab {
+      flex: 1; padding: 12px; background: none; border: none; cursor: pointer;
+      font-size: 0.95rem; font-weight: 600; color: var(--muted);
+      border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.2s;
+    }
+    .auth-tab.active { color: var(--green); border-bottom-color: var(--green); }
+    .auth-tab:hover:not(.active) { color: var(--text); }
+    .auth-error {
+      background: rgba(255, 26, 26, 0.1); border: 1px solid var(--danger);
+      color: var(--danger); padding: 10px 14px; border-radius: 8px;
+      font-size: 0.88rem; margin-bottom: 16px; display: none;
+    }
+    .auth-error.visible { display: block; }
+    .divider { text-align: center; color: var(--muted); font-size: 0.8rem; margin: 8px 0 4px; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div></div>
+    <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">💡</button>
+  </div>
+
+  <div class="container" style="max-width: 420px;">
+    <h1>CYCLE<span style="color: var(--text)">SYNC</span></h1>
+    <p class="subtitle" style="margin-bottom: 28px;">Ride together, wherever you are.</p>
+
+    <div class="card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="showTab('login')">Log In</button>
+        <button class="auth-tab" id="tab-signup" onclick="showTab('signup')">Sign Up</button>
+      </div>
+
+      <div id="error-msg" class="auth-error"></div>
+
+      <!-- Login form -->
+      <form id="form-login" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="label">Email</label>
+          <input class="input" id="login-email" type="email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="label">Password</label>
+          <input class="input" id="login-password" type="password" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <button class="btn btn-primary" type="submit" id="btn-login" style="width: 100%; margin-top: 8px;">Log In</button>
+        <p class="divider" style="margin-top: 16px;">New here? <a href="#" onclick="showTab('signup'); return false;" style="color: var(--green);">Create an account</a></p>
+      </form>
+
+      <!-- Sign up form -->
+      <form id="form-signup" onsubmit="handleSignup(event)" style="display: none;">
+        <div class="form-group">
+          <label class="label">Display Name</label>
+          <input class="input" id="signup-name" type="text" placeholder="Your name (shown to other riders)" required autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label class="label">Email</label>
+          <input class="input" id="signup-email" type="email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="label">Password</label>
+          <input class="input" id="signup-password" type="password" placeholder="Min. 6 characters" required autocomplete="new-password" minlength="6" />
+        </div>
+        <button class="btn btn-primary" type="submit" id="btn-signup" style="width: 100%; margin-top: 8px;">Create Account</button>
+        <p class="divider" style="margin-top: 16px;">Already have an account? <a href="#" onclick="showTab('login'); return false;" style="color: var(--green);">Log in</a></p>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let supabase = null;
+
+    async function initSupabase() {
+      const res = await fetch('/config');
+      const cfg = await res.json();
+      supabase = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+
+      // If already logged in, redirect home
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) window.location.href = '/';
+    }
+
+    initSupabase();
+
+    function showTab(tab) {
+      document.getElementById('form-login').style.display = tab === 'login' ? '' : 'none';
+      document.getElementById('form-signup').style.display = tab === 'signup' ? '' : 'none';
+      document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+      hideError();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.classList.add('visible');
+    }
+
+    function hideError() {
+      document.getElementById('error-msg').classList.remove('visible');
+    }
+
+    function setLoading(btnId, loading) {
+      const btn = document.getElementById(btnId);
+      btn.disabled = loading;
+      btn.textContent = loading ? 'Please wait...' : (btnId === 'btn-login' ? 'Log In' : 'Create Account');
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      hideError();
+      setLoading('btn-login', true);
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        showError(error.message);
+        setLoading('btn-login', false);
+      } else {
+        window.location.href = '/';
+      }
+    }
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      hideError();
+      setLoading('btn-signup', true);
+      const name = document.getElementById('signup-name').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const { error } = await supabase.auth.signUp({
+        email, password,
+        options: { data: { full_name: name } },
+      });
+      if (error) {
+        showError(error.message);
+        setLoading('btn-signup', false);
+      } else {
+        // Show confirmation message
+        document.getElementById('form-signup').innerHTML =
+          `<div style="text-align:center; padding: 16px 0;">
+            <div style="font-size: 2rem; margin-bottom: 12px;">📧</div>
+            <p style="color: var(--text); font-weight: 600;">Check your email</p>
+            <p style="color: var(--muted); font-size: 0.9rem; margin-top: 8px;">
+              We sent a confirmation link to <strong>${email}</strong>.<br/>
+              Click it to activate your account, then log in.
+            </p>
+            <button class="btn" onclick="showTab('login')" style="margin-top: 20px;">Back to Log In</button>
+          </div>`;
+      }
+    }
+
+    // Theme
+    const saved = localStorage.getItem('cyclesync-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+    function toggleTheme() {
+      const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      localStorage.setItem('cyclesync-theme', t);
+    }
+  </script>
+</body>
+</html>
