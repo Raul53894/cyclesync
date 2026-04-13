@@ -40,6 +40,15 @@
     <div id="blocks-container"></div>
     <button class="secondary" onclick="addBlock()" style="margin-top:8px;">+ Add Block</button>
 
+    <div id="save-workout-section" style="display:none; margin-top:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="save-workout-name" placeholder="Workout name (e.g. Tuesday Intervals)"
+               style="flex:1; min-width:180px; margin-bottom:0;">
+        <button class="secondary" onclick="saveWorkout()" style="width:auto; padding:10px 18px; min-height:unset; white-space:nowrap;">
+            💾 Save Workout
+        </button>
+    </div>
+    <div id="save-workout-msg" style="display:none; color:var(--green); font-size:0.85rem; margin-top:8px;"></div>
+
     <button id="start-btn" onclick="startWorkout()" style="margin-top:20px; display:none;">
         Start Workout for Everyone
     </button>
@@ -73,6 +82,21 @@
         } catch (e) { /* auth unavailable, continue */ }
     }
     checkAuth();
+
+    // Show Save Workout section if user is logged in
+    if (token) {
+        document.getElementById('save-workout-section').style.display = 'flex';
+    }
+
+    // Load template from sessionStorage if redirected from Account page
+    if (params.get('template') === '1') {
+        const raw = sessionStorage.getItem('cyclesync_template');
+        const tName = sessionStorage.getItem('cyclesync_template_name');
+        sessionStorage.removeItem('cyclesync_template');
+        sessionStorage.removeItem('cyclesync_template_name');
+        if (raw) { try { loadBlocksJson(JSON.parse(raw)); } catch(e) {} }
+        if (tName) { document.getElementById('save-workout-name').value = tName; }
+    }
 
     function toggleTheme() {
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -169,6 +193,95 @@
                     style="width:auto;padding:12px 16px;margin-top:0;min-height:48px;">&#10005;</button>
         `;
         intervals.appendChild(row);
+    }
+
+    function getBlocksForSave() {
+        const blocks = [];
+        document.querySelectorAll('.block').forEach(block => {
+            const reps = parseInt(block.querySelector('.block-reps').value) || 1;
+            const intervals = [];
+            block.querySelectorAll('.interval-row').forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                intervals.push({
+                    label: inputs[0].value || 'Interval',
+                    effort: parseInt(inputs[1].value) || 80,
+                    duration: (parseInt(inputs[2].value) || 0) * 60 + (parseInt(inputs[3].value) || 0) || 60,
+                });
+            });
+            if (intervals.length) blocks.push({ reps, intervals });
+        });
+        return blocks;
+    }
+
+    async function saveWorkout() {
+        const blocks = getBlocksForSave();
+        if (!blocks.length) return alert('Add at least one block before saving.');
+        const nameInput = document.getElementById('save-workout-name');
+        const name = nameInput.value.trim() || (selectedPreset ? selectedPreset.name : 'My Workout');
+        const totalDuration = blocks.reduce((s, b) =>
+            s + b.intervals.reduce((si, iv) => si + iv.duration, 0) * b.reps, 0);
+        try {
+            const res = await fetch('/api/workouts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ name, blocks_json: { blocks }, total_duration_seconds: totalDuration }),
+            });
+            if (res.ok) {
+                const msg = document.getElementById('save-workout-msg');
+                msg.textContent = `"${name}" saved to your account.`;
+                msg.style.display = 'block';
+                nameInput.value = '';
+                setTimeout(() => msg.style.display = 'none', 3000);
+            }
+        } catch(e) { console.error('Save failed:', e); }
+    }
+
+    function loadBlocksJson(blocksJson) {
+        const container = document.getElementById('blocks-container');
+        container.innerHTML = '';
+        selectedPreset = null;
+        document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('preset-active'));
+        (blocksJson.blocks || []).forEach((blockData, idx) => {
+            const block = document.createElement('div');
+            block.className = 'block';
+            block.innerHTML = `
+                <div class="block-header">
+                    <span class="block-title">Block ${idx + 1}</span>
+                    <button class="secondary remove" style="width:auto;padding:6px 12px;min-height:unset;font-size:0.75rem;"
+                            onclick="removeBlock(this)">Remove</button>
+                </div>
+                <div class="interval-labels">
+                    <span style="flex:2">Interval name</span>
+                    <span style="flex:0 0 56px">Effort (%)</span>
+                    <span style="flex:0 0 68px">Min</span>
+                    <span style="flex:0 0 68px">Sec</span>
+                    <span style="flex:0 0 48px"></span>
+                </div>
+                <div class="block-intervals"></div>
+                <div class="block-footer">
+                    <button class="secondary" style="flex:1;min-height:40px;font-size:0.8rem;margin-top:0;"
+                            onclick="addIntervalToBlock(this)">+ Add Interval</button>
+                    <label>Reps <input type="number" class="block-reps" min="1" value="${blockData.reps || 1}"
+                                       style="width:56px;margin-bottom:0;text-align:center;"></label>
+                </div>`;
+            const ivContainer = block.querySelector('.block-intervals');
+            (blockData.intervals || []).forEach(iv => {
+                const row = document.createElement('div');
+                row.className = 'interval-row';
+                const mins = Math.floor((iv.duration || 60) / 60);
+                const secs = (iv.duration || 60) % 60;
+                row.innerHTML = `
+                    <input type="text" style="flex:2" value="${iv.label || ''}">
+                    <input type="number" min="1" max="100" style="flex:0 0 56px" value="${iv.effort || 80}" title="Effort %">
+                    <input type="number" min="0" style="flex:0 0 68px" value="${mins}" title="Minutes">
+                    <input type="number" min="0" max="59" style="flex:0 0 68px" value="${secs}" title="Seconds">
+                    <button class="secondary remove" onclick="this.parentElement.remove()"
+                            style="width:auto;padding:12px 16px;margin-top:0;min-height:48px;">&#10005;</button>`;
+                ivContainer.appendChild(row);
+            });
+            container.appendChild(block);
+        });
+        updateBlockTitles();
     }
 
     function buildIntervals() {

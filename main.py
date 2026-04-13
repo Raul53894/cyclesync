@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import asyncio
@@ -53,6 +53,123 @@ async def session_page():
 @app.get("/auth")
 async def auth_page():
     return FileResponse("static/auth.html")
+
+@app.get("/account")
+async def account_page():
+    return FileResponse("static/account.html")
+
+# ── Auth helper ───────────────────────────────────────────────────────────────
+
+async def require_user(request: Request):
+    """Extract and validate the Bearer token; raise 401 if missing or invalid."""
+    if not _supabase:
+        raise HTTPException(status_code=503, detail="Auth not configured")
+    token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    user = await get_user_from_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+# ── Account API ───────────────────────────────────────────────────────────────
+
+@app.get("/api/sessions")
+async def api_get_sessions(request: Request):
+    user = await require_user(request)
+    result = await asyncio.to_thread(
+        lambda: _supabase.table("sessions")
+            .select("id, code, name, host_name, started_at, ended_at, total_time_seconds, created_at, participants(name)")
+            .eq("owner_id", user.id)
+            .order("created_at", desc=True)
+            .limit(50)
+            .execute()
+    )
+    return result.data
+
+@app.get("/api/sessions/{session_id}")
+async def api_get_session(session_id: str, request: Request):
+    user = await require_user(request)
+    try:
+        result = await asyncio.to_thread(
+            lambda: _supabase.table("sessions")
+                .select("*, participants(*), blocks(block_index, rep_count, intervals(label, effort_percent, duration_seconds))")
+                .eq("id", session_id)
+                .eq("owner_id", user.id)
+                .single()
+                .execute()
+        )
+        return result.data
+    except Exception:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+@app.get("/api/workouts")
+async def api_get_workouts(request: Request):
+    user = await require_user(request)
+    result = await asyncio.to_thread(
+        lambda: _supabase.table("saved_workouts")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", desc=True)
+            .execute()
+    )
+    return result.data
+
+@app.get("/api/workouts/{workout_id}")
+async def api_get_workout(workout_id: str, request: Request):
+    user = await require_user(request)
+    try:
+        result = await asyncio.to_thread(
+            lambda: _supabase.table("saved_workouts")
+                .select("*")
+                .eq("id", workout_id)
+                .eq("user_id", user.id)
+                .single()
+                .execute()
+        )
+        return result.data
+    except Exception:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+@app.post("/api/workouts")
+async def api_save_workout(request: Request):
+    user = await require_user(request)
+    body = await request.json()
+    if not body.get("name") or not body.get("blocks_json"):
+        raise HTTPException(status_code=400, detail="name and blocks_json are required")
+    result = await asyncio.to_thread(
+        lambda: _supabase.table("saved_workouts").insert({
+            "user_id": user.id,
+            "name": body["name"],
+            "blocks_json": body["blocks_json"],
+            "total_duration_seconds": body.get("total_duration_seconds"),
+        }).execute()
+    )
+    return result.data[0]
+
+@app.delete("/api/workouts/{workout_id}")
+async def api_delete_workout(workout_id: str, request: Request):
+    user = await require_user(request)
+    await asyncio.to_thread(
+        lambda: _supabase.table("saved_workouts")
+            .delete()
+            .eq("id", workout_id)
+            .eq("user_id", user.id)
+            .execute()
+    )
+    return {"ok": True}
+
+@app.patch("/api/profile")
+async def api_update_profile(request: Request):
+    user = await require_user(request)
+    body = await request.json()
+    full_name = body.get("full_name", "").strip()
+    if not full_name:
+        raise HTTPException(status_code=400, detail="full_name is required")
+    await asyncio.to_thread(
+        lambda: _supabase.auth.admin.update_user_by_id(
+            user.id, {"user_metadata": {"full_name": full_name}}
+        )
+    )
+    return {"ok": True}
 
 @app.post("/create-session")
 async def create_session(request: Request):
@@ -219,6 +336,7 @@ async def save_session_to_db(session):
         result = await asyncio.to_thread(
             lambda: _supabase.table("sessions").insert({
                 "code": session.get("code"),
+                "owner_id": session.get("owner_id"),
                 "name": session.get("preset_name", ""),
                 "host_name": session.get("host_name", ""),
                 "started_at": started.isoformat() if started else None,

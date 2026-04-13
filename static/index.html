@@ -11,6 +11,9 @@
 <div class="card">
     <div class="toolbar">
         <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">💡</button>
+        <a href="/account" id="account-btn" style="display:none;">
+            <button class="secondary" style="padding:6px 14px; font-size:0.8rem; min-height:unset;">My Account</button>
+        </a>
         <button class="secondary" id="logout-btn" onclick="logout()" style="display:none; padding:6px 14px; font-size:0.8rem; min-height:unset;">Log out</button>
     </div>
     <h1>CycleSync</h1>
@@ -51,7 +54,10 @@
             _supabase = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
             const { data } = await _supabase.auth.getSession();
             _session = data.session;
-            if (_session) document.getElementById('logout-btn').style.display = '';
+            if (_session) {
+                document.getElementById('logout-btn').style.display = '';
+                document.getElementById('account-btn').style.display = '';
+            }
         } catch (e) {
             // auth not available, continue without it
         }
