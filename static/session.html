@@ -4,18 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CycleSync — Session</title>
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
 
 <!-- Reconnect banner (hidden when connected) -->
 <div id="reconnect-banner" class="reconnect-banner hidden">⟳ Reconnecting...</div>
 
+<div id="session-info-overlay" onclick="closeSessionInfo()">
+    <div id="session-info-modal" onclick="event.stopPropagation()">
+        <div class="preset-modal-header">
+            <span class="preset-modal-title">Session Info</span>
+            <button class="modal-close-btn" onclick="closeSessionInfo()">✕</button>
+        </div>
+        <div id="session-info-body"></div>
+    </div>
+</div>
+
 <div class="card">
     <div class="toolbar">
+        <button class="icon-btn" onclick="openSessionInfo()" title="Session info">ℹ</button>
         <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">💡</button>
     </div>
-    <h1>CycleSync</h1>
+    <h1>Live Session</h1>
     <div id="session-name-display" class="session-name hidden"></div>
 
     <!-- Name entry (used when joining via shared link) -->
@@ -491,6 +502,22 @@
             btn.textContent = '✓';
             setTimeout(() => { btn.textContent = '📋'; }, 2000);
         });
+    }
+
+    // ── Session info modal ─────────────────────────────────────────────────
+    function openSessionInfo() {
+        const items = [];
+        if (sessionName) items.push(`<div class="preset-detail-item"><span class="stats-label">Session</span><span>${sessionName}</span></div>`);
+        items.push(`<div class="preset-detail-item"><span class="stats-label">Code</span><span>${code}</span></div>`);
+        if (presetName) items.push(`<div class="preset-detail-item"><span class="stats-label">Preset</span><span>${presetName}</span></div>`);
+        items.push(`<div class="preset-detail-item"><span class="stats-label">Riders</span><span>${currentParticipants.join(', ') || '—'}</span></div>`);
+        document.getElementById('session-info-body').innerHTML =
+            `<div class="preset-detail-grid" style="border:none;padding:0;margin:0;">${items.join('')}</div>`;
+        document.getElementById('session-info-overlay').classList.add('visible');
+    }
+
+    function closeSessionInfo() {
+        document.getElementById('session-info-overlay').classList.remove('visible');
     }
 </script>
 </body>

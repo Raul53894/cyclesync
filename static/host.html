@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CycleSync — Host</title>
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="stylesheet" href="/static/style.css?v=4">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -12,16 +12,17 @@
     <div id="preset-tooltip" onclick="event.stopPropagation()">
         <div class="preset-modal-header">
             <span class="preset-modal-title" id="preset-tooltip-title"></span>
-            <button id="preset-tooltip-close" onclick="closePresetTooltip()">✕</button>
+            <button class="modal-close-btn" onclick="closePresetTooltip()">✕</button>
         </div>
         <div id="preset-tooltip-body"></div>
     </div>
 </div>
 <div class="card card--wide">
     <div class="toolbar">
+        <button class="icon-btn" onclick="cancelSession()" title="Back to home">←</button>
         <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">💡</button>
     </div>
-    <h1>You're the Host</h1>
+    <h1>Create Session</h1>
     <div id="session-name-display" class="session-name hidden"></div>
     <p>Share this code with your friends:</p>
     <div class="code-display" id="session-code"></div>
@@ -32,7 +33,7 @@
         <ul id="participant-list"></ul>
     </div>
 
-    <hr style="border-color:#222; margin: 24px 0;">
+    <hr style="border-color:var(--card-border); margin: 24px 0;">
     <h2 style="text-align:left; margin-bottom:16px;">Build Your Workout</h2>
 
     <div id="preset-grid" class="preset-grid"></div>
@@ -98,6 +99,8 @@
         if (tName) { document.getElementById('save-workout-name').value = tName; }
     }
 
+    function cancelSession() { window.location.href = '/'; }
+
     function toggleTheme() {
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
         const next = isLight ? 'dark' : 'light';
@@ -146,8 +149,7 @@
         block.innerHTML = `
             <div class="block-header">
                 <span class="block-title">Block ${idx + 1}</span>
-                <button class="secondary remove" style="width:auto;padding:6px 12px;min-height:unset;font-size:0.75rem;"
-                        onclick="removeBlock(this)">Remove</button>
+                <button class="secondary remove btn-compact" onclick="removeBlock(this)">Remove</button>
             </div>
             <div class="interval-labels">
                 <span style="flex:2">Interval name</span>
@@ -189,8 +191,7 @@
             <input type="number" min="1" max="100" style="flex:0 0 56px" title="Effort %">
             <input type="number" min="0" style="flex:0 0 68px" title="Minutes">
             <input type="number" min="0" max="59" style="flex:0 0 68px" title="Seconds">
-            <button class="secondary remove" onclick="this.parentElement.remove()"
-                    style="width:auto;padding:12px 16px;margin-top:0;min-height:48px;">&#10005;</button>
+            <button class="secondary remove btn-compact" onclick="this.parentElement.remove()">&#10005;</button>
         `;
         intervals.appendChild(row);
     }
