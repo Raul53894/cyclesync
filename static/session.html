@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CycleSync — Session</title>
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
 
@@ -13,7 +13,7 @@
 
 <div class="card">
     <div class="toolbar">
-        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">☀️</button>
+        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">💡</button>
     </div>
     <h1>CycleSync</h1>
     <div id="session-name-display" class="session-name hidden"></div>
@@ -138,6 +138,7 @@
     }
     let completedIntervals = [];
     let sessionStartTime = null;
+    let presetName = '';
     let currentParticipants = [];
     let audioCtx = null;
 
@@ -145,14 +146,14 @@
     const savedTheme = localStorage.getItem('cyclesync-theme') || 'dark';
     if (savedTheme === 'light') {
         document.documentElement.setAttribute('data-theme', 'light');
-        document.getElementById('theme-btn').textContent = '🌙';
+        document.getElementById('theme-btn').textContent = '💡';
     }
 
     function toggleTheme() {
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
         const next = isLight ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', next === 'dark' ? '' : 'light');
-        document.getElementById('theme-btn').textContent = next === 'light' ? '🌙' : '☀️';
+        document.getElementById('theme-btn').textContent = '💡';
         localStorage.setItem('cyclesync-theme', next);
     }
 
@@ -250,6 +251,10 @@
             if (count) count.textContent = `${data.names.length} Rider${data.names.length !== 1 ? 's' : ''}`;
         }
 
+        if (data.type === 'workout_ready') {
+            presetName = data.presetName || '';
+        }
+
         if (data.type === 'countdown') {
             const el = document.getElementById('countdown-display');
             el.classList.remove('hidden');
@@ -270,6 +275,11 @@
             if (data.index === 0) {
                 sessionStartTime = Date.now();
                 if (sessionName) document.querySelector('h1').textContent = sessionName;
+                if (presetName) {
+                    const sub = document.getElementById('session-name-display');
+                    sub.textContent = presetName;
+                    sub.classList.remove('hidden');
+                }
             }
             completedIntervals.push({ label: data.label, effort: data.effort, duration: data.duration, block: data.block ?? 0 });
 

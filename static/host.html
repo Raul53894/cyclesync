@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CycleSync — Host</title>
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
 <div id="preset-tooltip-overlay" onclick="closePresetTooltip()">
@@ -16,9 +16,9 @@
         <div id="preset-tooltip-body"></div>
     </div>
 </div>
-<div class="card">
+<div class="card card--wide">
     <div class="toolbar">
-        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">☀️</button>
+        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">💡</button>
     </div>
     <h1>You're the Host</h1>
     <div id="session-name-display" class="session-name hidden"></div>
@@ -50,19 +50,20 @@
     const name = params.get('name');
     const sessionName = params.get('session') || '';
     let ws;
+    let selectedPreset = null;
 
     // Apply saved theme
     const savedTheme = localStorage.getItem('cyclesync-theme') || 'dark';
     if (savedTheme === 'light') {
         document.documentElement.setAttribute('data-theme', 'light');
-        document.getElementById('theme-btn').textContent = '🌙';
+        document.getElementById('theme-btn').textContent = '💡';
     }
 
     function toggleTheme() {
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
         const next = isLight ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', next === 'dark' ? '' : 'light');
-        document.getElementById('theme-btn').textContent = next === 'light' ? '🌙' : '☀️';
+        document.getElementById('theme-btn').textContent = '💡';
         localStorage.setItem('cyclesync-theme', next);
     }
 
@@ -107,6 +108,13 @@
                 <button class="secondary remove" style="width:auto;padding:6px 12px;min-height:unset;font-size:0.75rem;"
                         onclick="removeBlock(this)">Remove</button>
             </div>
+            <div class="interval-labels">
+                <span style="flex:2">Interval name</span>
+                <span style="flex:0 0 56px">Effort (%)</span>
+                <span style="flex:0 0 68px">Min</span>
+                <span style="flex:0 0 68px">Sec</span>
+                <span style="flex:0 0 48px"></span>
+            </div>
             <div class="block-intervals"></div>
             <div class="block-footer">
                 <button class="secondary" style="flex:1;min-height:40px;font-size:0.8rem;margin-top:0;"
@@ -136,9 +144,10 @@
         const row = document.createElement('div');
         row.className = 'interval-row';
         row.innerHTML = `
-            <input type="text" placeholder="Label (e.g. Hard Effort)" style="flex:2">
-            <input type="number" placeholder="%" min="1" max="100" style="flex:1" title="Effort %">
-            <input type="number" placeholder="Secs" min="1" style="flex:1" title="Duration in seconds">
+            <input type="text" style="flex:2">
+            <input type="number" min="1" max="100" style="flex:0 0 56px" title="Effort %">
+            <input type="number" min="0" style="flex:0 0 68px" title="Minutes">
+            <input type="number" min="0" max="59" style="flex:0 0 68px" title="Seconds">
             <button class="secondary remove" onclick="this.parentElement.remove()"
                     style="width:auto;padding:12px 16px;margin-top:0;min-height:48px;">&#10005;</button>
         `;
@@ -155,7 +164,7 @@
                 base.push({
                     label: inputs[0].value || 'Interval',
                     effort: parseInt(inputs[1].value) || 80,
-                    duration: parseInt(inputs[2].value) || 60,
+                    duration: (parseInt(inputs[2].value) || 0) * 60 + (parseInt(inputs[3].value) || 0) || 60,
                     block: blockIdx,
                 });
             });
@@ -168,11 +177,20 @@
 
     function startWorkout() {
         const intervals = buildIntervals();
-        ws.send(JSON.stringify({ type: 'set_workout', intervals }));
+        ws.send(JSON.stringify({ type: 'set_workout', intervals, presetName: selectedPreset ? selectedPreset.name : '' }));
         ws.send(JSON.stringify({ type: 'start_workout' }));
     }
 
     const PRESETS = [
+        { id: 'open', name: 'Open Session', cardName: 'Open<br>Session',
+          open: true,
+          difficulty: 'Cadence Focus',
+          tooltip: 'Free-form session with no fixed structure. Build your own intervals or ride at your own pace.',
+          effortLabel: 'Cadence Focus', effortColor: '#9b5cf5',
+          blocks: [
+            { intervals: [{ label: 'Open Ride', effort: 65, duration: 3600 }], reps: 1 },
+          ]
+        },
         { id: 'recovery', name: 'Recovery Spin',
           tooltip: 'Easy recovery-focused ride to get moving without fatigue.',
           effortLabel: 'Easy', effortColor: '#4a9eff',
@@ -206,7 +224,7 @@
             { intervals: [{ label: 'Cool-down', effort: 50, duration: 300 }], reps: 1 },
           ]
         },
-        { id: 'vo2', name: 'VO2 Punches',
+        { id: 'vo2', name: 'VO2 Punches', cardName: 'VO2<br>Punches',
           tooltip: 'Short hard efforts with recoveries to raise intensity.',
           effortLabel: 'Hard', effortColor: '#ff3333',
           blocks: [
@@ -241,13 +259,14 @@
                     s + b.intervals.reduce((si, iv) => si + iv.duration, 0) * b.reps, 0
                 ) / 60
             );
+            const durationLabel = p.open ? 'Open' : `${mins} min`;
             const card = document.createElement('div');
             card.className = 'preset-card';
             card.id = `preset-${p.id}`;
             card.innerHTML = `
-                <span class="preset-name">${p.name}</span>
+                <span class="preset-name">${p.cardName || p.name}</span>
                 <div class="preset-meta">
-                    <span class="preset-duration">${mins} min</span>
+                    <span class="preset-duration">${durationLabel}</span>
                     <span class="preset-chip" style="background:${p.effortColor}22;color:${p.effortColor};">${p.effortLabel}</span>
                 </div>
             `;
@@ -274,6 +293,7 @@
         if (card.classList.contains('preset-active')) {
             card.classList.remove('preset-active');
             container.innerHTML = '';
+            selectedPreset = null;
             return;
         }
 
@@ -291,7 +311,8 @@
                 const inputs = row.querySelectorAll('input');
                 inputs[0].value = ivDef.label;
                 inputs[1].value = ivDef.effort;
-                inputs[2].value = ivDef.duration;
+                inputs[2].value = Math.floor(ivDef.duration / 60);
+                inputs[3].value = ivDef.duration % 60 || '';
             });
 
             block.querySelector('.block-reps').value = blockDef.reps;
@@ -299,6 +320,7 @@
 
         document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('preset-active'));
         document.getElementById(`preset-${preset.id}`).classList.add('preset-active');
+        selectedPreset = preset;
     }
 
     function closePresetTooltip() {
@@ -322,6 +344,7 @@
     };
 
     function presetDifficulty(preset) {
+        if (preset.difficulty) return preset.difficulty;
         const max = Math.max(...preset.blocks.flatMap(b => b.intervals.map(iv => iv.effort)));
         if (max <= 55) return 'Beginner';
         if (max <= 75) return 'Easy';
@@ -396,7 +419,7 @@
             <div class="preset-detail-grid">
                 <div class="preset-detail-item">
                     <span class="stats-label">Duration</span>
-                    <span>${totalMins} min</span>
+                    <span>${preset.open ? 'Open' : `${totalMins} min`}</span>
                 </div>
                 <div class="preset-detail-item">
                     <span class="stats-label">Difficulty</span>
