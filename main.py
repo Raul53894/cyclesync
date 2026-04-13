@@ -6,8 +6,21 @@ import random
 import string
 import json
 import time
+import os
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
+
+# Supabase client — initialised only when env vars are present
+_supabase = None
+_SUPABASE_URL = os.getenv("SUPABASE_URL")
+_SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+if _SUPABASE_URL and _SUPABASE_KEY:
+    from supabase import create_client
+    _supabase = create_client(_SUPABASE_URL, _SUPABASE_KEY)
 
 # Store active sessions in memory
 sessions = {}
@@ -34,7 +47,9 @@ async def session_page():
 async def create_session():
     code = generate_code()
     sessions[code] = {
+        "code": code,
         "host": None,
+        "host_name": None,
         "clients": [],          # list of websockets
         "names": {},            # websocket id -> name
         "workout": [],          # list of intervals
@@ -44,6 +59,8 @@ async def create_session():
         "ended": False,
         "current_interval": None,  # last interval_start payload, for late-joining clients
         "last_tick": None,         # last tick payload, for late-joining clients
+        "started_at": None,
+        "ended_at": None,
     }
     return {"code": code}
 
@@ -63,6 +80,7 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
 
     if role == "host":
         session["host"] = websocket
+        session["host_name"] = name
 
     # Notify all clients of updated participant list
     await broadcast_participants(session)
@@ -82,7 +100,8 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
             # Host sends workout definition
             if data["type"] == "set_workout":
                 session["workout"] = data["intervals"]
-                await broadcast(session, {"type": "workout_ready", "intervals": data["intervals"]})
+                session["preset_name"] = data.get("presetName", "")
+                await broadcast(session, {"type": "workout_ready", "intervals": data["intervals"], "presetName": session["preset_name"]})
 
             # Host starts the workout
             elif data["type"] == "start_workout":
@@ -90,7 +109,7 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
                 session["ended"] = False
                 session["pause_event"] = asyncio.Event()
                 session["pause_event"].set()  # start in running state
-                asyncio.create_task(run_workout(session))
+                asyncio.create_task(run_workout(code, session))
                 # Tell the host to navigate now that the server has the workout
                 await websocket.send_text(json.dumps({"type": "starting"}))
 
@@ -124,12 +143,14 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
             # Host ends the workout early
             elif data["type"] == "end":
                 session["ended"] = True
+                session["ended_at"] = datetime.now(timezone.utc)
                 if session.get("pause_event"):
                     session["pause_event"].set()  # unblock if currently paused
                 if session.get("block_event"):
                     session["block_event"].set()  # unblock if waiting between blocks
                 session["started"] = False
                 await broadcast(session, {"type": "workout_complete"})
+                asyncio.create_task(save_session_to_db(session))
 
     except WebSocketDisconnect:
         session["clients"].remove(websocket)
@@ -153,7 +174,69 @@ async def broadcast_participants(session):
             names.append(n)
     await broadcast(session, {"type": "participants", "names": names})
 
-async def run_workout(session):
+async def save_session_to_db(session):
+    if not _supabase:
+        return
+    try:
+        started = session.get("started_at")
+        ended = session.get("ended_at")
+        total_seconds = int((ended - started).total_seconds()) if started and ended else None
+
+        result = await asyncio.to_thread(
+            lambda: _supabase.table("sessions").insert({
+                "code": session.get("code"),
+                "name": session.get("preset_name", ""),
+                "host_name": session.get("host_name", ""),
+                "started_at": started.isoformat() if started else None,
+                "ended_at": ended.isoformat() if ended else None,
+                "total_time_seconds": total_seconds,
+            }).execute()
+        )
+        session_id = result.data[0]["id"]
+
+        # Participants
+        for name in set(session["names"].values()):
+            await asyncio.to_thread(
+                lambda n=name: _supabase.table("participants").insert({
+                    "session_id": session_id, "name": n,
+                }).execute()
+            )
+
+        # Group intervals into blocks (mirrors run_workout logic)
+        blocks = []
+        for iv in session["workout"]:
+            b = iv.get("block", 0)
+            if not blocks or blocks[-1][0] != b:
+                blocks.append((b, []))
+            blocks[-1][1].append(iv)
+
+        for block_pos, (_, block_intervals) in enumerate(blocks):
+            block_result = await asyncio.to_thread(
+                lambda bp=block_pos, bi=block_intervals: _supabase.table("blocks").insert({
+                    "session_id": session_id,
+                    "block_index": bp,
+                    "rep_count": bi[0].get("totalReps", 1),
+                }).execute()
+            )
+            block_id = block_result.data[0]["id"]
+
+            seen = set()
+            for iv in block_intervals:
+                if iv["label"] not in seen:
+                    seen.add(iv["label"])
+                    await asyncio.to_thread(
+                        lambda i=iv: _supabase.table("intervals").insert({
+                            "block_id": block_id,
+                            "label": i["label"],
+                            "effort_percent": i["effort"],
+                            "duration_seconds": i["duration"],
+                        }).execute()
+                    )
+    except Exception as e:
+        print(f"DB write failed (non-critical): {e}")
+
+
+async def run_workout(code, session):
     intervals = session["workout"]
     total = len(intervals)
 
@@ -164,6 +247,8 @@ async def run_workout(session):
         if not blocks or blocks[-1][0] != b:
             blocks.append((b, []))
         blocks[-1][1].append(iv)
+
+    session["started_at"] = datetime.now(timezone.utc)
 
     # 5-second countdown before the first interval
     for count in range(5, 0, -1):
@@ -222,5 +307,7 @@ async def run_workout(session):
 
     # Workout complete (natural finish)
     if not session.get("ended"):
+        session["ended_at"] = datetime.now(timezone.utc)
         await broadcast(session, {"type": "workout_complete"})
+        asyncio.create_task(save_session_to_db(session))
     session["started"] = False
