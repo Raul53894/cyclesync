@@ -25,7 +25,7 @@
     <div id="session-name-display" class="session-name hidden"></div>
     <p>Share this code with your friends:</p>
     <div class="code-display" id="session-code"></div>
-    <button class="secondary" onclick="shareSession()" style="margin-top:8px; width:auto; padding:10px 20px; font-size:0.8rem;">Share Link</button>
+    <button class="btn btn-secondary btn-sm" onclick="shareSession()" style="margin-top:8px;">Share Link</button>
     <p class="status">Waiting for riders to join...</p>
 
     <div class="participant-list">
@@ -38,18 +38,18 @@
     <div id="preset-grid" class="preset-grid"></div>
 
     <div id="blocks-container"></div>
-    <button class="secondary" onclick="addBlock()" style="margin-top:8px;">+ Add Block</button>
+    <button class="btn btn-ghost-green btn-sm" onclick="addBlock()" style="margin-top:8px;">+ Add Block</button>
 
     <div id="save-workout-section" style="display:none; margin-top:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <input type="text" id="save-workout-name" placeholder="Workout name (e.g. Tuesday Intervals)"
-               style="flex:1; min-width:180px; margin-bottom:0;">
-        <button class="secondary" onclick="saveWorkout()" style="width:auto; padding:10px 18px; min-height:unset; white-space:nowrap;">
+        <input class="inp" type="text" id="save-workout-name" placeholder="Workout name (e.g. Tuesday Intervals)"
+               style="flex:1; min-width:180px;">
+        <button class="btn btn-secondary btn-sm" onclick="saveWorkout()" style="white-space:nowrap;">
             💾 Save Workout
         </button>
     </div>
     <div id="save-workout-msg" style="display:none; color:var(--green); font-size:0.85rem; margin-top:8px;"></div>
 
-    <button id="start-btn" onclick="startWorkout()" style="margin-top:20px; display:none;">
+    <button id="start-btn" class="btn btn-primary" onclick="startWorkout()" style="margin-top:20px; display:none; width:100%;">
         Start Workout for Everyone
     </button>
 </div>
@@ -133,7 +133,7 @@
         block.innerHTML = `
             <div class="block-header">
                 <span class="block-title">Block ${idx + 1}</span>
-                <button class="secondary remove btn-compact" onclick="removeBlock(this)">Delete</button>
+                <button class="btn btn-danger btn-sm" onclick="removeBlock(this)">Delete</button>
             </div>
             <div class="interval-labels">
                 <span style="flex:2">Interval name</span>
@@ -144,10 +144,10 @@
             </div>
             <div class="block-intervals"></div>
             <div class="block-footer">
-                <button class="btn-ghost-green" style="flex:1;min-height:48px;margin-top:0;"
+                <button class="btn btn-ghost-green btn-sm" style="flex:1;"
                         onclick="addIntervalToBlock(this)">+ Add Interval</button>
-                <label>Reps <input type="number" class="block-reps" min="1" value="1"
-                                   style="width:56px;margin-bottom:0;text-align:center;"></label>
+                <label>Reps <input class="inp block-reps" type="number" min="1" value="1"
+                                   style="width:56px;text-align:center;"></label>
             </div>
         `;
         container.appendChild(block);
@@ -171,11 +171,11 @@
         const row = document.createElement('div');
         row.className = 'interval-row';
         row.innerHTML = `
-            <input type="text" style="flex:2">
-            <input type="number" min="1" max="100" style="flex:0 0 56px" title="Effort %">
-            <input type="number" min="0" style="flex:0 0 68px" title="Minutes">
-            <input type="number" min="0" max="59" style="flex:0 0 68px" title="Seconds">
-            <button class="secondary remove btn-compact" onclick="this.parentElement.remove()">&#10005;</button>
+            <input class="inp" type="text" style="flex:2">
+            <input class="inp" type="number" min="1" max="100" style="flex:0 0 56px" title="Effort %">
+            <input class="inp" type="number" min="0" style="flex:0 0 68px" title="Minutes">
+            <input class="inp" type="number" min="0" max="59" style="flex:0 0 68px" title="Seconds">
+            <button class="btn btn-danger btn-icon" onclick="this.parentElement.remove()">&#10005;</button>
         `;
         intervals.appendChild(row);
     }
@@ -232,7 +232,7 @@
             block.innerHTML = `
                 <div class="block-header">
                     <span class="block-title">Block ${idx + 1}</span>
-                    <button class="secondary remove btn-compact" onclick="removeBlock(this)">Delete</button>
+                    <button class="btn btn-danger btn-sm" onclick="removeBlock(this)">Delete</button>
                 </div>
                 <div class="interval-labels">
                     <span style="flex:2">Interval name</span>
@@ -243,10 +243,10 @@
                 </div>
                 <div class="block-intervals"></div>
                 <div class="block-footer">
-                    <button class="btn-ghost-green" style="flex:1;min-height:48px;margin-top:0;"
+                    <button class="btn btn-ghost-green btn-sm" style="flex:1;"
                             onclick="addIntervalToBlock(this)">+ Add Interval</button>
-                    <label>Reps <input type="number" class="block-reps" min="1" value="${blockData.reps || 1}"
-                                       style="width:56px;margin-bottom:0;text-align:center;"></label>
+                    <label>Reps <input class="inp block-reps" type="number" min="1" value="${blockData.reps || 1}"
+                                       style="width:56px;text-align:center;"></label>
                 </div>`;
             const ivContainer = block.querySelector('.block-intervals');
             (blockData.intervals || []).forEach(iv => {
@@ -255,12 +255,11 @@
                 const mins = Math.floor((iv.duration || 60) / 60);
                 const secs = (iv.duration || 60) % 60;
                 row.innerHTML = `
-                    <input type="text" style="flex:2" value="${iv.label || ''}">
-                    <input type="number" min="1" max="100" style="flex:0 0 56px" value="${iv.effort || 80}" title="Effort %">
-                    <input type="number" min="0" style="flex:0 0 68px" value="${mins}" title="Minutes">
-                    <input type="number" min="0" max="59" style="flex:0 0 68px" value="${secs}" title="Seconds">
-                    <button class="secondary remove" onclick="this.parentElement.remove()"
-                            style="width:auto;padding:12px 16px;margin-top:0;min-height:48px;">&#10005;</button>`;
+                    <input class="inp" type="text" style="flex:2" value="${iv.label || ''}">
+                    <input class="inp" type="number" min="1" max="100" style="flex:0 0 56px" value="${iv.effort || 80}" title="Effort %">
+                    <input class="inp" type="number" min="0" style="flex:0 0 68px" value="${mins}" title="Minutes">
+                    <input class="inp" type="number" min="0" max="59" style="flex:0 0 68px" value="${secs}" title="Seconds">
+                    <button class="btn btn-danger btn-icon" onclick="this.parentElement.remove()">&#10005;</button>`;
                 ivContainer.appendChild(row);
             });
             container.appendChild(block);
