@@ -1,113 +1,85 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SYNCD — Sign In</title>
-  <link rel="stylesheet" href="/static/style.css?v=5" />
+  <link rel="stylesheet" href="/static/components.css" />
+  <link rel="stylesheet" href="/static/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    .auth-card { max-width: 500px; margin: 0 auto; width: 100%; }
-
-    .auth-tabs {
-      display: flex;
-      margin: -40px -40px 32px -40px;
-      border-bottom: 2px solid var(--card-border);
-    }
-    .auth-tab {
-      flex: 1; padding: 16px; background: none; border: none; cursor: pointer;
-      font-size: 1rem; font-weight: 600; color: var(--muted); letter-spacing: 0.5px;
-      border-bottom: 2px solid transparent; margin-bottom: -2px;
-      transition: color 0.2s, border-color 0.2s; min-height: unset;
-    }
-    .auth-tab.active { color: var(--green); border-bottom-color: var(--green); }
-    .auth-tab:hover:not(.active) { color: var(--text); background: none; }
-
-    .field { margin-bottom: 20px; }
-    .field label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.5px; }
-
-    .auth-error {
-      background: rgba(255, 26, 26, 0.1); border: 1px solid var(--danger);
-      color: var(--danger); padding: 12px 16px; border-radius: 8px;
-      font-size: 0.9rem; margin-bottom: 20px; display: none;
-    }
-    .auth-error.visible { display: block; }
-
-    .auth-footer { text-align: center; color: var(--muted); font-size: 0.88rem; margin-top: 20px; }
-    .auth-footer a { color: var(--green); text-decoration: none; }
-    .auth-footer a:hover { text-decoration: underline; }
-
-    .confirm-box { text-align: center; padding: 24px 0 8px; }
-    .confirm-box .icon { font-size: 2.5rem; margin-bottom: 16px; }
-    .confirm-box p { color: var(--muted); font-size: 0.92rem; margin-top: 10px; line-height: 1.6; }
-    .confirm-box strong { color: var(--text); }
-
-    /* Compact buttons for the auth card */
-    .auth-card button[type="submit"] {
-      width: 100%;
-      padding: 11px 16px;
-      font-size: 0.9rem;
-      min-height: unset;
-      margin-top: 4px;
-    }
-    .auth-card .secondary {
-      padding: 10px 16px;
-      font-size: 0.88rem;
-      min-height: unset;
-    }
-  </style>
 </head>
 <body>
-  <div style="padding: 20px 16px 60px; display: flex; flex-direction: column; align-items: center;">
-    <h1 style="margin-bottom: 6px;">SYNCD</h1>
-    <p style="color: var(--muted); margin-bottom: 36px; font-size: 0.95rem;">Ride together, wherever you are.</p>
 
-    <div class="card auth-card">
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="tab-login" onclick="showTab('login')">Log In</button>
-        <button class="auth-tab" id="tab-signup" onclick="showTab('signup')">Sign Up</button>
+  <div style="text-align:center; margin-bottom:28px;">
+    <h1>SYNCD</h1>
+    <p style="color:var(--text-muted); font-size:0.9rem;">Ride together, wherever you are.</p>
+  </div>
+
+  <div class="card" style="max-width:440px;">
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="showTab('login')">Log In</button>
+      <button class="auth-tab" id="tab-signup" onclick="showTab('signup')">Sign Up</button>
+    </div>
+
+    <!-- Error message -->
+    <div id="error-msg" class="badge b-red"
+         style="display:none; width:100%; margin-bottom:16px; border-radius:8px; padding:10px 14px; font-size:13px; justify-content:flex-start;">
+    </div>
+
+    <!-- Login form -->
+    <form id="form-login" onsubmit="handleLogin(event)">
+      <div class="input-group" style="margin-bottom:12px;">
+        <label class="input-label">Email</label>
+        <input class="inp" type="email" id="login-email"
+               placeholder="you@example.com" required autocomplete="email" />
       </div>
+      <div class="input-group" style="margin-bottom:20px;">
+        <label class="input-label">Password</label>
+        <input class="inp" type="password" id="login-password"
+               placeholder="••••••••" required autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary" type="submit" id="btn-login" style="width:100%;">Log In</button>
+      <p class="auth-footer">
+        New here? <a href="#" onclick="showTab('signup'); return false;">Create an account</a>
+      </p>
+    </form>
 
-      <div id="error-msg" class="auth-error"></div>
-
-      <!-- Login form -->
-      <form id="form-login" onsubmit="handleLogin(event)">
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="login-email" placeholder="you@example.com" required autocomplete="email" />
+    <!-- Sign up -->
+    <div id="form-signup" style="display:none;">
+      <form id="signup-form" onsubmit="handleSignup(event)">
+        <div class="input-group" style="margin-bottom:12px;">
+          <label class="input-label">Display Name</label>
+          <input class="inp" type="text" id="signup-name"
+                 placeholder="Your name" required autocomplete="name" />
         </div>
-        <div class="field">
-          <label>Password</label>
-          <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+        <div class="input-group" style="margin-bottom:12px;">
+          <label class="input-label">Email</label>
+          <input class="inp" type="email" id="signup-email"
+                 placeholder="you@example.com" required autocomplete="email" />
         </div>
-        <button type="submit" id="btn-login">Log In</button>
-        <p class="auth-footer">New here? <a href="#" onclick="showTab('signup'); return false;">Create an account</a></p>
+        <div class="input-group" style="margin-bottom:20px;">
+          <label class="input-label">Password</label>
+          <input class="inp" type="password" id="signup-password"
+                 placeholder="Min. 6 characters" required autocomplete="new-password" minlength="6" />
+        </div>
+        <button class="btn btn-primary" type="submit" id="btn-signup" style="width:100%;">Create Account</button>
+        <p class="auth-footer">
+          Already have an account? <a href="#" onclick="showTab('login'); return false;">Log in</a>
+        </p>
       </form>
 
-      <!-- Sign up form -->
-      <div id="form-signup" style="display: none;">
-        <form id="signup-form" onsubmit="handleSignup(event)">
-          <div class="field">
-            <label>Display Name</label>
-            <input type="text" id="signup-name" placeholder="Your name (shown to other riders)" required autocomplete="name" />
-          </div>
-          <div class="field">
-            <label>Email</label>
-            <input type="email" id="signup-email" placeholder="you@example.com" required autocomplete="email" />
-          </div>
-          <div class="field">
-            <label>Password</label>
-            <input type="password" id="signup-password" placeholder="Min. 6 characters" required autocomplete="new-password" minlength="6" />
-          </div>
-          <button type="submit" id="btn-signup">Create Account</button>
-          <p class="auth-footer">Already have an account? <a href="#" onclick="showTab('login'); return false;">Log in</a></p>
-        </form>
-        <div id="signup-confirm" class="confirm-box" style="display: none;">
-          <div class="icon">📧</div>
-          <p style="color: var(--text); font-weight: 600; font-size: 1rem;">Check your email</p>
-          <p>We sent a confirmation link to <strong id="confirm-email"></strong>.<br/>Click it to activate your account, then log in.</p>
-          <button class="secondary" onclick="showTab('login')" style="margin-top: 24px; width: 100%;">Back to Log In</button>
-        </div>
+      <!-- Email confirmation state -->
+      <div id="signup-confirm" class="confirm-box" style="display:none;">
+        <div class="confirm-icon">📧</div>
+        <p style="font-weight:600; font-size:1rem; color:var(--text);">Check your email</p>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-top:8px; line-height:1.6;">
+          We sent a confirmation link to
+          <strong id="confirm-email" style="color:var(--text);"></strong>.<br/>
+          Click it to activate your account, then log in.
+        </p>
+        <button class="btn btn-secondary" onclick="showTab('login')" style="width:100%; margin-top:20px;">
+          Back to Log In
+        </button>
       </div>
     </div>
   </div>
@@ -120,7 +92,7 @@
         const res = await fetch('/config');
         const cfg = await res.json();
         if (!cfg.supabase_url || !cfg.supabase_anon_key) {
-          showError('Auth is not configured yet. Check that SUPABASE_ANON_KEY is set in your environment.');
+          showError('Auth is not configured. Check that SUPABASE_ANON_KEY is set.');
           return;
         }
         _supabase = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
@@ -144,11 +116,11 @@
     function showError(msg) {
       const el = document.getElementById('error-msg');
       el.textContent = msg;
-      el.classList.add('visible');
+      el.style.display = '';
     }
 
     function hideError() {
-      document.getElementById('error-msg').classList.remove('visible');
+      document.getElementById('error-msg').style.display = 'none';
     }
 
     function setLoading(btnId, loading, label) {
@@ -159,7 +131,7 @@
 
     async function handleLogin(e) {
       e.preventDefault();
-      if (!_supabase) { showError('Auth service is not ready. Please refresh the page.'); return; }
+      if (!_supabase) { showError('Auth service not ready. Please refresh.'); return; }
       hideError();
       setLoading('btn-login', true, 'Log In');
       try {
@@ -177,7 +149,7 @@
 
     async function handleSignup(e) {
       e.preventDefault();
-      if (!_supabase) { showError('Auth service is not ready. Please refresh the page.'); return; }
+      if (!_supabase) { showError('Auth service not ready. Please refresh.'); return; }
       hideError();
       setLoading('btn-signup', true, 'Create Account');
       const name = document.getElementById('signup-name').value.trim();
@@ -201,7 +173,6 @@
         setLoading('btn-signup', false, 'Create Account');
       }
     }
-
   </script>
 </body>
 </html>

@@ -1,570 +1,582 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYNCD — Create Session</title>
-    <link rel="stylesheet" href="/static/style.css?v=5">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SYNCD — Create Session</title>
+  <link rel="stylesheet" href="/static/components.css" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+
+<!-- Preset detail modal -->
 <div id="preset-tooltip-overlay" onclick="closePresetTooltip()">
-    <div id="preset-tooltip" onclick="event.stopPropagation()">
-        <div class="preset-modal-header">
-            <span class="preset-modal-title" id="preset-tooltip-title"></span>
-            <button class="modal-close-btn" onclick="closePresetTooltip()">✕</button>
-        </div>
-        <div id="preset-tooltip-body"></div>
+  <div id="preset-tooltip" onclick="event.stopPropagation()">
+    <div class="preset-modal-header">
+      <span class="preset-modal-title" id="preset-tooltip-title"></span>
+      <button class="modal-close-btn" onclick="closePresetTooltip()">✕</button>
     </div>
+    <div id="preset-tooltip-body"></div>
+  </div>
 </div>
+
 <div class="card card--wide">
-    <div class="toolbar" style="justify-content:flex-start;">
-        <button class="icon-btn" onclick="cancelSession()" title="Back to home">←</button>
-    </div>
-    <h1>Create Session</h1>
-    <div id="session-name-display" class="session-name hidden"></div>
-    <p>Share this code with your friends:</p>
-    <div class="code-display" id="session-code"></div>
-    <button class="btn btn-secondary btn-sm" onclick="shareSession()" style="margin-top:8px;">Share Link</button>
-    <p class="status">Waiting for riders to join...</p>
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button class="icon-btn" onclick="cancelSession()" title="Back to home">←</button>
+    <div></div>
+  </div>
 
-    <div class="participant-list">
-        <ul id="participant-list"></ul>
-    </div>
+  <h1>Create Session</h1>
+  <div id="session-name-display" class="session-name hidden"></div>
 
-    <hr style="border-color:var(--card-border); margin: 24px 0;">
-    <h2 style="text-align:left; margin-bottom:16px;">Build Your Workout</h2>
+  <p style="color:var(--text-muted); font-size:13px; margin-bottom:4px;">Share this code with your friends</p>
+  <div class="code-display" id="session-code"></div>
+  <button class="btn btn-secondary btn-sm" onclick="shareSession()" style="margin-bottom:4px;">Share Link</button>
+  <p class="status">Waiting for riders to join...</p>
 
-    <div id="preset-grid" class="preset-grid"></div>
+  <div class="participant-list">
+    <ul id="participant-list"></ul>
+  </div>
 
-    <div id="blocks-container"></div>
-    <button class="btn btn-ghost-green btn-sm" onclick="addBlock()" style="margin-top:8px;">+ Add Block</button>
+  <hr />
+  <h2 style="margin-bottom:16px;">Build Your Workout</h2>
 
-    <div id="save-workout-section" style="display:none; margin-top:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <input class="inp" type="text" id="save-workout-name" placeholder="Workout name (e.g. Tuesday Intervals)"
-               style="flex:1; min-width:180px;">
-        <button class="btn btn-secondary btn-sm" onclick="saveWorkout()" style="white-space:nowrap;">
-            💾 Save Workout
-        </button>
-    </div>
-    <div id="save-workout-msg" style="display:none; color:var(--green); font-size:0.85rem; margin-top:8px;"></div>
+  <div id="preset-grid" class="preset-grid"></div>
 
-    <button id="start-btn" class="btn btn-primary" onclick="startWorkout()" style="margin-top:20px; display:none; width:100%;">
-        Start Workout for Everyone
+  <div id="blocks-container"></div>
+
+  <button class="btn-ghost-green btn-sm" onclick="addBlock()" style="margin-top:8px;">+ Add Block</button>
+
+  <!-- Save workout (auth only) -->
+  <div id="save-workout-section" style="display:none; margin-top:20px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <input class="inp" type="text" id="save-workout-name"
+           placeholder="Workout name (e.g. Tuesday Intervals)"
+           style="flex:1; min-width:180px;" />
+    <button class="btn btn-secondary btn-sm" onclick="saveWorkout()" style="white-space:nowrap;">
+      💾 Save Workout
     </button>
+  </div>
+  <div id="save-workout-msg" style="display:none; color:var(--green); font-size:13px; margin-top:8px;"></div>
+
+  <button id="start-btn" class="btn btn-primary" onclick="startWorkout()"
+          style="width:100%; margin-top:24px; display:none;">
+    Start Workout for Everyone
+  </button>
 </div>
 
 <script>
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const name = params.get('name');
-    const sessionName = params.get('session') || '';
-    const token = params.get('token') || '';
-    let ws;
-    let selectedPreset = null;
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const name = params.get('name');
+  const sessionName = params.get('session') || '';
+  const token = params.get('token') || '';
+  let ws;
+  let selectedPreset = null;
 
-    // Auth guard — redirect to /auth if not logged in
-    async function checkAuth() {
-        try {
-            const res = await fetch('/config');
-            const cfg = await res.json();
-            if (!cfg.supabase_url) return; // auth not configured, skip
-            const sb = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
-            const { data } = await sb.auth.getSession();
-            if (!data.session) window.location.href = '/auth';
-        } catch (e) { /* auth unavailable, continue */ }
-    }
-    checkAuth();
+  // Auth guard
+  async function checkAuth() {
+    try {
+      const res = await fetch('/config');
+      const cfg = await res.json();
+      if (!cfg.supabase_url) return;
+      const sb = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+      const { data } = await sb.auth.getSession();
+      if (!data.session) window.location.href = '/auth';
+    } catch (e) {}
+  }
+  checkAuth();
 
-    // Show Save Workout section if user is logged in
-    if (token) {
-        document.getElementById('save-workout-section').style.display = 'flex';
-    }
+  if (token) {
+    document.getElementById('save-workout-section').style.display = 'flex';
+  }
 
-    // Load template from sessionStorage if redirected from Account page
-    if (params.get('template') === '1') {
-        const raw = sessionStorage.getItem('cyclesync_template');
-        const tName = sessionStorage.getItem('cyclesync_template_name');
-        sessionStorage.removeItem('cyclesync_template');
-        sessionStorage.removeItem('cyclesync_template_name');
-        if (raw) { try { loadBlocksJson(JSON.parse(raw)); } catch(e) {} }
-        if (tName) { document.getElementById('save-workout-name').value = tName; }
-    }
+  // Load template from sessionStorage if redirected from Account page
+  if (params.get('template') === '1') {
+    const raw = sessionStorage.getItem('cyclesync_template');
+    const tName = sessionStorage.getItem('cyclesync_template_name');
+    sessionStorage.removeItem('cyclesync_template');
+    sessionStorage.removeItem('cyclesync_template_name');
+    if (raw) { try { loadBlocksJson(JSON.parse(raw)); } catch(e) {} }
+    if (tName) { document.getElementById('save-workout-name').value = tName; }
+  }
 
-    function cancelSession() { window.location.href = '/'; }
+  function cancelSession() { window.location.href = '/'; }
 
-    document.getElementById('session-code').textContent = code;
+  document.getElementById('session-code').textContent = code;
 
-    if (sessionName) {
-        const el = document.getElementById('session-name-display');
-        el.textContent = sessionName;
-        el.classList.remove('hidden');
-    }
+  if (sessionName) {
+    const el = document.getElementById('session-name-display');
+    el.textContent = sessionName;
+    el.classList.remove('hidden');
+  }
 
-    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsToken = token ? `?token=${encodeURIComponent(token)}` : '';
-    ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/host${wsToken}`);
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsToken = token ? `?token=${encodeURIComponent(token)}` : '';
+  ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/host${wsToken}`);
 
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
 
-        if (data.type === 'starting') {
-            let url = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
-            if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
-            if (token) url += `&token=${encodeURIComponent(token)}`;
-            window.location.href = url;
-            return;
-        }
-
-        if (data.type === 'participants') {
-            const list = document.getElementById('participant-list');
-            list.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
-            if (data.names.length >= 1) {
-                document.getElementById('start-btn').style.display = 'block';
-            }
-        }
-    };
-
-    function addBlock() {
-        const container = document.getElementById('blocks-container');
-        const idx = container.querySelectorAll('.block').length;
-        const block = document.createElement('div');
-        block.className = 'block';
-        block.innerHTML = `
-            <div class="block-header">
-                <span class="block-title">Block ${idx + 1}</span>
-                <button class="btn btn-danger btn-sm" onclick="removeBlock(this)">Delete</button>
-            </div>
-            <div class="interval-labels">
-                <span style="flex:2">Interval name</span>
-                <span style="flex:0 0 56px">Effort (%)</span>
-                <span style="flex:0 0 68px">Min</span>
-                <span style="flex:0 0 68px">Sec</span>
-                <span style="flex:0 0 48px"></span>
-            </div>
-            <div class="block-intervals"></div>
-            <div class="block-footer">
-                <button class="btn btn-ghost-green btn-sm" style="flex:1;"
-                        onclick="addIntervalToBlock(this)">+ Add Interval</button>
-                <label>Reps <input class="inp block-reps" type="number" min="1" value="1"
-                                   style="width:56px;text-align:center;"></label>
-            </div>
-        `;
-        container.appendChild(block);
-        addIntervalToBlock(block.querySelector('.block-footer button'));
-        updateBlockTitles();
+    if (data.type === 'starting') {
+      let url = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
+      if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
+      if (token) url += `&token=${encodeURIComponent(token)}`;
+      window.location.href = url;
+      return;
     }
 
-    function removeBlock(btn) {
-        btn.closest('.block').remove();
-        updateBlockTitles();
+    if (data.type === 'participants') {
+      const list = document.getElementById('participant-list');
+      list.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
+      if (data.names.length >= 1) {
+        document.getElementById('start-btn').style.display = 'block';
+      }
     }
+  };
 
-    function updateBlockTitles() {
-        document.querySelectorAll('.block-title').forEach((el, i) => {
-            el.textContent = `Block ${i + 1}`;
+  // ── Block builder ──────────────────────────────────────────────────────
+  function addBlock() {
+    const container = document.getElementById('blocks-container');
+    const idx = container.querySelectorAll('.block').length;
+    const block = document.createElement('div');
+    block.className = 'block';
+    block.innerHTML = `
+      <div class="block-header">
+        <span class="block-title">Block ${idx + 1}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeBlock(this)">Delete</button>
+      </div>
+      <div class="interval-labels">
+        <span style="flex:2">Interval name</span>
+        <span style="flex:0 0 56px">Effort %</span>
+        <span style="flex:0 0 68px">Min</span>
+        <span style="flex:0 0 68px">Sec</span>
+        <span style="flex:0 0 36px"></span>
+      </div>
+      <div class="block-intervals"></div>
+      <div class="block-footer">
+        <button class="btn-ghost-green btn-sm" style="flex:1;"
+                onclick="addIntervalToBlock(this)">+ Add Interval</button>
+        <label>Reps
+          <input class="inp block-reps" type="number" min="1" value="1"
+                 style="width:56px; text-align:center;" />
+        </label>
+      </div>
+    `;
+    container.appendChild(block);
+    addIntervalToBlock(block.querySelector('.block-footer button'));
+    updateBlockTitles();
+  }
+
+  function removeBlock(btn) {
+    btn.closest('.block').remove();
+    updateBlockTitles();
+  }
+
+  function updateBlockTitles() {
+    document.querySelectorAll('.block-title').forEach((el, i) => {
+      el.textContent = `Block ${i + 1}`;
+    });
+  }
+
+  function addIntervalToBlock(btn) {
+    const intervals = btn.closest('.block').querySelector('.block-intervals');
+    const row = document.createElement('div');
+    row.className = 'interval-row';
+    row.innerHTML = `
+      <input class="inp" type="text" style="flex:2" placeholder="e.g. Sweet Spot" />
+      <input class="inp" type="number" min="1" max="100" style="flex:0 0 56px" placeholder="80" title="Effort %" />
+      <input class="inp" type="number" min="0" style="flex:0 0 68px" placeholder="0" title="Minutes" />
+      <input class="inp" type="number" min="0" max="59" style="flex:0 0 68px" placeholder="30" title="Seconds" />
+      <button class="btn btn-danger btn-icon" onclick="this.parentElement.remove()">✕</button>
+    `;
+    intervals.appendChild(row);
+  }
+
+  function getBlocksForSave() {
+    const blocks = [];
+    document.querySelectorAll('.block').forEach(block => {
+      const reps = parseInt(block.querySelector('.block-reps').value) || 1;
+      const intervals = [];
+      block.querySelectorAll('.interval-row').forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        intervals.push({
+          label: inputs[0].value || 'Interval',
+          effort: parseInt(inputs[1].value) || 80,
+          duration: (parseInt(inputs[2].value) || 0) * 60 + (parseInt(inputs[3].value) || 0) || 60,
         });
-    }
+      });
+      if (intervals.length) blocks.push({ reps, intervals });
+    });
+    return blocks;
+  }
 
-    function addIntervalToBlock(btn) {
-        const intervals = btn.closest('.block').querySelector('.block-intervals');
+  async function saveWorkout() {
+    const blocks = getBlocksForSave();
+    if (!blocks.length) return alert('Add at least one block before saving.');
+    const nameInput = document.getElementById('save-workout-name');
+    const wName = nameInput.value.trim() || (selectedPreset ? selectedPreset.name : 'My Workout');
+    const totalDuration = blocks.reduce((s, b) =>
+      s + b.intervals.reduce((si, iv) => si + iv.duration, 0) * b.reps, 0);
+    try {
+      const res = await fetch('/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: wName, blocks_json: { blocks }, total_duration_seconds: totalDuration }),
+      });
+      if (res.ok) {
+        const msg = document.getElementById('save-workout-msg');
+        msg.textContent = `"${wName}" saved to your account.`;
+        msg.style.display = 'block';
+        nameInput.value = '';
+        setTimeout(() => msg.style.display = 'none', 3000);
+      }
+    } catch(e) { console.error('Save failed:', e); }
+  }
+
+  function loadBlocksJson(blocksJson) {
+    const container = document.getElementById('blocks-container');
+    container.innerHTML = '';
+    selectedPreset = null;
+    document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('preset-active'));
+    (blocksJson.blocks || []).forEach((blockData, idx) => {
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.innerHTML = `
+        <div class="block-header">
+          <span class="block-title">Block ${idx + 1}</span>
+          <button class="btn btn-danger btn-sm" onclick="removeBlock(this)">Delete</button>
+        </div>
+        <div class="interval-labels">
+          <span style="flex:2">Interval name</span>
+          <span style="flex:0 0 56px">Effort %</span>
+          <span style="flex:0 0 68px">Min</span>
+          <span style="flex:0 0 68px">Sec</span>
+          <span style="flex:0 0 36px"></span>
+        </div>
+        <div class="block-intervals"></div>
+        <div class="block-footer">
+          <button class="btn-ghost-green btn-sm" style="flex:1;"
+                  onclick="addIntervalToBlock(this)">+ Add Interval</button>
+          <label>Reps
+            <input class="inp block-reps" type="number" min="1" value="${blockData.reps || 1}"
+                   style="width:56px; text-align:center;" />
+          </label>
+        </div>
+      `;
+      const ivContainer = block.querySelector('.block-intervals');
+      (blockData.intervals || []).forEach(iv => {
         const row = document.createElement('div');
         row.className = 'interval-row';
+        const mins = Math.floor((iv.duration || 60) / 60);
+        const secs = (iv.duration || 60) % 60;
         row.innerHTML = `
-            <input class="inp" type="text" style="flex:2">
-            <input class="inp" type="number" min="1" max="100" style="flex:0 0 56px" title="Effort %">
-            <input class="inp" type="number" min="0" style="flex:0 0 68px" title="Minutes">
-            <input class="inp" type="number" min="0" max="59" style="flex:0 0 68px" title="Seconds">
-            <button class="btn btn-danger btn-icon" onclick="this.parentElement.remove()">&#10005;</button>
+          <input class="inp" type="text" style="flex:2" value="${iv.label || ''}" />
+          <input class="inp" type="number" min="1" max="100" style="flex:0 0 56px" value="${iv.effort || 80}" title="Effort %" />
+          <input class="inp" type="number" min="0" style="flex:0 0 68px" value="${mins}" title="Minutes" />
+          <input class="inp" type="number" min="0" max="59" style="flex:0 0 68px" value="${secs}" title="Seconds" />
+          <button class="btn btn-danger btn-icon" onclick="this.parentElement.remove()">✕</button>
         `;
-        intervals.appendChild(row);
-    }
+        ivContainer.appendChild(row);
+      });
+      container.appendChild(block);
+    });
+    updateBlockTitles();
+  }
 
-    function getBlocksForSave() {
-        const blocks = [];
-        document.querySelectorAll('.block').forEach(block => {
-            const reps = parseInt(block.querySelector('.block-reps').value) || 1;
-            const intervals = [];
-            block.querySelectorAll('.interval-row').forEach(row => {
-                const inputs = row.querySelectorAll('input');
-                intervals.push({
-                    label: inputs[0].value || 'Interval',
-                    effort: parseInt(inputs[1].value) || 80,
-                    duration: (parseInt(inputs[2].value) || 0) * 60 + (parseInt(inputs[3].value) || 0) || 60,
-                });
-            });
-            if (intervals.length) blocks.push({ reps, intervals });
+  function buildIntervals() {
+    const allIntervals = [];
+    document.querySelectorAll('.block').forEach((block, blockIdx) => {
+      const reps = parseInt(block.querySelector('.block-reps').value) || 1;
+      const base = [];
+      block.querySelectorAll('.interval-row').forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        base.push({
+          label: inputs[0].value || 'Interval',
+          effort: parseInt(inputs[1].value) || 80,
+          duration: (parseInt(inputs[2].value) || 0) * 60 + (parseInt(inputs[3].value) || 0) || 60,
+          block: blockIdx,
         });
-        return blocks;
+      });
+      for (let i = 0; i < reps; i++) {
+        base.forEach(iv => allIntervals.push({ ...iv, rep: i + 1, totalReps: reps }));
+      }
+    });
+    return allIntervals;
+  }
+
+  function startWorkout() {
+    const intervals = buildIntervals();
+    ws.send(JSON.stringify({ type: 'set_workout', intervals, presetName: selectedPreset ? selectedPreset.name : '' }));
+    ws.send(JSON.stringify({ type: 'start_workout' }));
+  }
+
+  // ── Presets ────────────────────────────────────────────────────────────
+  const PRESETS = [
+    { id: 'open', name: 'Open Session', cardName: 'Open<br>Session',
+      open: true,
+      difficulty: 'Cadence Focus',
+      tooltip: 'Free-form session with no fixed structure. Build your own intervals or ride at your own pace.',
+      effortLabel: 'Cadence Focus', effortColor: '#9b5cf5',
+      blocks: [
+        { intervals: [{ label: 'Open Ride', effort: 65, duration: 3600 }], reps: 1 },
+      ]
+    },
+    { id: 'recovery', name: 'Recovery Spin',
+      tooltip: 'Easy recovery-focused ride to get moving without fatigue.',
+      effortLabel: 'Easy', effortColor: '#4a9eff',
+      blocks: [
+        { intervals: [{ label: 'Warm-up',   effort: 50, duration: 300 }], reps: 1 },
+        { intervals: [{ label: 'Easy Ride', effort: 50, duration: 600 }], reps: 1 },
+        { intervals: [{ label: 'Cool-down', effort: 50, duration: 300 }], reps: 1 },
+      ]
+    },
+    { id: 'endurance', name: 'Endurance Ride',
+      tooltip: 'Steady aerobic ride at a conversational pace.',
+      effortLabel: 'Steady', effortColor: '#22ff66',
+      blocks: [
+        { intervals: [{ label: 'Warm-up',       effort: 50, duration:  300 }], reps: 1 },
+        { intervals: [{ label: 'Steady Effort', effort: 65, duration: 2100 }], reps: 1 },
+        { intervals: [{ label: 'Cool-down',     effort: 50, duration:  300 }], reps: 1 },
+      ]
+    },
+    { id: 'sweetspot', name: 'Sweet Spot Builder',
+      tooltip: 'Time-efficient structured ride with sustained moderate-hard efforts.',
+      effortLabel: 'Moderate', effortColor: '#ff8c00',
+      blocks: [
+        { intervals: [{ label: 'Warm-up', effort: 50, duration: 600 }], reps: 1 },
+        { intervals: [
+            { label: 'Sweet Spot', effort: 80, duration: 480 },
+            { label: 'Recovery',   effort: 50, duration: 180 },
+            { label: 'Sweet Spot', effort: 80, duration: 480 },
+            { label: 'Recovery',   effort: 50, duration: 180 },
+            { label: 'Sweet Spot', effort: 80, duration: 480 },
+          ], reps: 1 },
+        { intervals: [{ label: 'Cool-down', effort: 50, duration: 300 }], reps: 1 },
+      ]
+    },
+    { id: 'vo2', name: 'VO2 Punches', cardName: 'VO2<br>Punches',
+      tooltip: 'Short hard efforts with recoveries to raise intensity.',
+      effortLabel: 'Hard', effortColor: '#ff3333',
+      blocks: [
+        { intervals: [{ label: 'Warm-up',  effort: 50, duration: 600 }], reps: 1 },
+        { intervals: [
+            { label: 'Hard Push', effort: 90, duration: 180 },
+            { label: 'Recovery',  effort: 50, duration: 180 },
+          ], reps: 5 },
+        { intervals: [{ label: 'Cool-down', effort: 50, duration: 300 }], reps: 1 },
+      ]
+    },
+    { id: 'spinouts', name: 'Spin-Outs',
+      tooltip: 'High-cadence drill to improve leg speed and coordination.',
+      effortLabel: 'Cadence Focus', effortColor: '#9b5cf5',
+      blocks: [
+        { intervals: [{ label: 'Warm-up', effort: 50, duration: 600 }], reps: 1 },
+        { intervals: [
+            { label: 'Cadence Build', effort: 70, duration:  30 },
+            { label: 'Cadence Focus', effort: 65, duration:  60 },
+            { label: 'Easy',          effort: 50, duration: 240 },
+          ], reps: 4 },
+        { intervals: [{ label: 'Cool-down', effort: 50, duration: 600 }], reps: 1 },
+      ]
+    },
+  ];
+
+  function renderPresets() {
+    const grid = document.getElementById('preset-grid');
+    PRESETS.forEach(p => {
+      const mins = Math.round(
+        p.blocks.reduce((s, b) =>
+          s + b.intervals.reduce((si, iv) => si + iv.duration, 0) * b.reps, 0
+        ) / 60
+      );
+      const durationLabel = p.open ? 'Open' : `${mins} min`;
+      const card = document.createElement('div');
+      card.className = 'preset-card';
+      card.id = `preset-${p.id}`;
+      card.innerHTML = `
+        <span class="preset-name">${p.cardName || p.name}</span>
+        <div class="preset-meta">
+          <span class="preset-duration">${durationLabel}</span>
+          <span class="preset-chip" style="background:${p.effortColor}22; color:${p.effortColor};">${p.effortLabel}</span>
+        </div>
+      `;
+      card.addEventListener('click', () => applyPreset(p));
+
+      const detailsBtn = document.createElement('button');
+      detailsBtn.className = 'preset-details-btn';
+      detailsBtn.textContent = 'details';
+      detailsBtn.addEventListener('click', (e) => { e.stopPropagation(); openPresetModal(p); });
+
+      const item = document.createElement('div');
+      item.className = 'preset-item';
+      item.appendChild(card);
+      item.appendChild(detailsBtn);
+      grid.appendChild(item);
+    });
+  }
+
+  function applyPreset(preset) {
+    const container = document.getElementById('blocks-container');
+    const card = document.getElementById(`preset-${preset.id}`);
+
+    if (card.classList.contains('preset-active')) {
+      card.classList.remove('preset-active');
+      container.innerHTML = '';
+      selectedPreset = null;
+      return;
     }
 
-    async function saveWorkout() {
-        const blocks = getBlocksForSave();
-        if (!blocks.length) return alert('Add at least one block before saving.');
-        const nameInput = document.getElementById('save-workout-name');
-        const name = nameInput.value.trim() || (selectedPreset ? selectedPreset.name : 'My Workout');
-        const totalDuration = blocks.reduce((s, b) =>
-            s + b.intervals.reduce((si, iv) => si + iv.duration, 0) * b.reps, 0);
-        try {
-            const res = await fetch('/api/workouts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ name, blocks_json: { blocks }, total_duration_seconds: totalDuration }),
-            });
-            if (res.ok) {
-                const msg = document.getElementById('save-workout-msg');
-                msg.textContent = `"${name}" saved to your account.`;
-                msg.style.display = 'block';
-                nameInput.value = '';
-                setTimeout(() => msg.style.display = 'none', 3000);
-            }
-        } catch(e) { console.error('Save failed:', e); }
-    }
+    container.innerHTML = '';
 
-    function loadBlocksJson(blocksJson) {
-        const container = document.getElementById('blocks-container');
-        container.innerHTML = '';
-        selectedPreset = null;
-        document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('preset-active'));
-        (blocksJson.blocks || []).forEach((blockData, idx) => {
-            const block = document.createElement('div');
-            block.className = 'block';
-            block.innerHTML = `
-                <div class="block-header">
-                    <span class="block-title">Block ${idx + 1}</span>
-                    <button class="btn btn-danger btn-sm" onclick="removeBlock(this)">Delete</button>
-                </div>
-                <div class="interval-labels">
-                    <span style="flex:2">Interval name</span>
-                    <span style="flex:0 0 56px">Effort (%)</span>
-                    <span style="flex:0 0 68px">Min</span>
-                    <span style="flex:0 0 68px">Sec</span>
-                    <span style="flex:0 0 48px"></span>
-                </div>
-                <div class="block-intervals"></div>
-                <div class="block-footer">
-                    <button class="btn btn-ghost-green btn-sm" style="flex:1;"
-                            onclick="addIntervalToBlock(this)">+ Add Interval</button>
-                    <label>Reps <input class="inp block-reps" type="number" min="1" value="${blockData.reps || 1}"
-                                       style="width:56px;text-align:center;"></label>
-                </div>`;
-            const ivContainer = block.querySelector('.block-intervals');
-            (blockData.intervals || []).forEach(iv => {
-                const row = document.createElement('div');
-                row.className = 'interval-row';
-                const mins = Math.floor((iv.duration || 60) / 60);
-                const secs = (iv.duration || 60) % 60;
-                row.innerHTML = `
-                    <input class="inp" type="text" style="flex:2" value="${iv.label || ''}">
-                    <input class="inp" type="number" min="1" max="100" style="flex:0 0 56px" value="${iv.effort || 80}" title="Effort %">
-                    <input class="inp" type="number" min="0" style="flex:0 0 68px" value="${mins}" title="Minutes">
-                    <input class="inp" type="number" min="0" max="59" style="flex:0 0 68px" value="${secs}" title="Seconds">
-                    <button class="btn btn-danger btn-icon" onclick="this.parentElement.remove()">&#10005;</button>`;
-                ivContainer.appendChild(row);
-            });
-            container.appendChild(block);
-        });
-        updateBlockTitles();
-    }
+    preset.blocks.forEach(blockDef => {
+      addBlock();
+      const block = container.querySelector('.block:last-child');
+      const intervalsContainer = block.querySelector('.block-intervals');
+      intervalsContainer.innerHTML = '';
 
-    function buildIntervals() {
-        const allIntervals = [];
-        document.querySelectorAll('.block').forEach((block, blockIdx) => {
-            const reps = parseInt(block.querySelector('.block-reps').value) || 1;
-            const base = [];
-            block.querySelectorAll('.interval-row').forEach(row => {
-                const inputs = row.querySelectorAll('input');
-                base.push({
-                    label: inputs[0].value || 'Interval',
-                    effort: parseInt(inputs[1].value) || 80,
-                    duration: (parseInt(inputs[2].value) || 0) * 60 + (parseInt(inputs[3].value) || 0) || 60,
-                    block: blockIdx,
-                });
-            });
-            for (let i = 0; i < reps; i++) {
-                base.forEach(iv => allIntervals.push({ ...iv, rep: i + 1, totalReps: reps }));
-            }
-        });
-        return allIntervals;
-    }
+      blockDef.intervals.forEach(ivDef => {
+        addIntervalToBlock(block.querySelector('.block-footer button'));
+        const row = intervalsContainer.querySelector('.interval-row:last-child');
+        const inputs = row.querySelectorAll('input');
+        inputs[0].value = ivDef.label;
+        inputs[1].value = ivDef.effort;
+        inputs[2].value = Math.floor(ivDef.duration / 60);
+        inputs[3].value = ivDef.duration % 60 || '';
+      });
 
-    function startWorkout() {
-        const intervals = buildIntervals();
-        ws.send(JSON.stringify({ type: 'set_workout', intervals, presetName: selectedPreset ? selectedPreset.name : '' }));
-        ws.send(JSON.stringify({ type: 'start_workout' }));
-    }
+      block.querySelector('.block-reps').value = blockDef.reps;
+    });
 
-    const PRESETS = [
-        { id: 'open', name: 'Open Session', cardName: 'Open<br>Session',
-          open: true,
-          difficulty: 'Cadence Focus',
-          tooltip: 'Free-form session with no fixed structure. Build your own intervals or ride at your own pace.',
-          effortLabel: 'Cadence Focus', effortColor: '#9b5cf5',
-          blocks: [
-            { intervals: [{ label: 'Open Ride', effort: 65, duration: 3600 }], reps: 1 },
-          ]
-        },
-        { id: 'recovery', name: 'Recovery Spin',
-          tooltip: 'Easy recovery-focused ride to get moving without fatigue.',
-          effortLabel: 'Easy', effortColor: '#4a9eff',
-          blocks: [
-            { intervals: [{ label: 'Warm-up',   effort: 50, duration: 300 }], reps: 1 },
-            { intervals: [{ label: 'Easy Ride', effort: 50, duration: 600 }], reps: 1 },
-            { intervals: [{ label: 'Cool-down', effort: 50, duration: 300 }], reps: 1 },
-          ]
-        },
-        { id: 'endurance', name: 'Endurance Ride',
-          tooltip: 'Steady aerobic ride at a conversational pace.',
-          effortLabel: 'Steady', effortColor: '#22ff66',
-          blocks: [
-            { intervals: [{ label: 'Warm-up',       effort: 50, duration:  300 }], reps: 1 },
-            { intervals: [{ label: 'Steady Effort', effort: 65, duration: 2100 }], reps: 1 },
-            { intervals: [{ label: 'Cool-down',     effort: 50, duration:  300 }], reps: 1 },
-          ]
-        },
-        { id: 'sweetspot', name: 'Sweet Spot Builder',
-          tooltip: 'Time-efficient structured ride with sustained moderate-hard efforts.',
-          effortLabel: 'Moderate', effortColor: '#ff8c00',
-          blocks: [
-            { intervals: [{ label: 'Warm-up', effort: 50, duration: 600 }], reps: 1 },
-            { intervals: [
-                { label: 'Sweet Spot', effort: 80, duration: 480 },
-                { label: 'Recovery',   effort: 50, duration: 180 },
-                { label: 'Sweet Spot', effort: 80, duration: 480 },
-                { label: 'Recovery',   effort: 50, duration: 180 },
-                { label: 'Sweet Spot', effort: 80, duration: 480 },
-              ], reps: 1 },
-            { intervals: [{ label: 'Cool-down', effort: 50, duration: 300 }], reps: 1 },
-          ]
-        },
-        { id: 'vo2', name: 'VO2 Punches', cardName: 'VO2<br>Punches',
-          tooltip: 'Short hard efforts with recoveries to raise intensity.',
-          effortLabel: 'Hard', effortColor: '#ff3333',
-          blocks: [
-            { intervals: [{ label: 'Warm-up',  effort: 50, duration: 600 }], reps: 1 },
-            { intervals: [
-                { label: 'Hard Push', effort: 90, duration: 180 },
-                { label: 'Recovery',  effort: 50, duration: 180 },
-              ], reps: 5 },
-            { intervals: [{ label: 'Cool-down', effort: 50, duration: 300 }], reps: 1 },
-          ]
-        },
-        { id: 'spinouts', name: 'Spin-Outs',
-          tooltip: 'High-cadence drill to improve leg speed and coordination.',
-          effortLabel: 'Cadence Focus', effortColor: '#9b5cf5',
-          blocks: [
-            { intervals: [{ label: 'Warm-up', effort: 50, duration: 600 }], reps: 1 },
-            { intervals: [
-                { label: 'Cadence Build', effort: 70, duration:  30 },
-                { label: 'Cadence Focus', effort: 65, duration:  60 },
-                { label: 'Easy',          effort: 50, duration: 240 },
-              ], reps: 4 },
-            { intervals: [{ label: 'Cool-down', effort: 50, duration: 600 }], reps: 1 },
-          ]
-        },
-    ];
+    document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('preset-active'));
+    document.getElementById(`preset-${preset.id}`).classList.add('preset-active');
+    selectedPreset = preset;
+  }
 
-    function renderPresets() {
-        const grid = document.getElementById('preset-grid');
-        PRESETS.forEach(p => {
-            const mins = Math.round(
-                p.blocks.reduce((s, b) =>
-                    s + b.intervals.reduce((si, iv) => si + iv.duration, 0) * b.reps, 0
-                ) / 60
-            );
-            const durationLabel = p.open ? 'Open' : `${mins} min`;
-            const card = document.createElement('div');
-            card.className = 'preset-card';
-            card.id = `preset-${p.id}`;
-            card.innerHTML = `
-                <span class="preset-name">${p.cardName || p.name}</span>
-                <div class="preset-meta">
-                    <span class="preset-duration">${durationLabel}</span>
-                    <span class="preset-chip" style="background:${p.effortColor}22;color:${p.effortColor};">${p.effortLabel}</span>
-                </div>
-            `;
-            card.addEventListener('click', () => applyPreset(p));
+  function closePresetTooltip() {
+    document.getElementById('preset-tooltip-overlay').classList.remove('visible');
+  }
 
-            const detailsBtn = document.createElement('button');
-            detailsBtn.className = 'preset-details-btn';
-            detailsBtn.textContent = 'details';
-            detailsBtn.addEventListener('click', () => openPresetModal(p));
+  function effortToZone(e) {
+    if (e <= 55) return 1;
+    if (e <= 75) return 2;
+    if (e <= 87) return 3;
+    if (e <= 95) return 4;
+    return 5;
+  }
 
-            const item = document.createElement('div');
-            item.className = 'preset-item';
-            item.appendChild(card);
-            item.appendChild(detailsBtn);
-            grid.appendChild(item);
-        });
-    }
+  const ZONE_LABELS = {
+    1: { name: 'Z1 Recovery',   color: '#4a9eff' },
+    2: { name: 'Z2 Endurance',  color: '#22ff66' },
+    3: { name: 'Z3 Tempo',      color: '#ff8c00' },
+    4: { name: 'Z4 Threshold',  color: '#ff3333' },
+    5: { name: 'Z5 VO2 Max',    color: '#cc2200' },
+  };
 
-    function applyPreset(preset) {
-        const container = document.getElementById('blocks-container');
-        const card = document.getElementById(`preset-${preset.id}`);
+  function presetDifficulty(preset) {
+    if (preset.difficulty) return preset.difficulty;
+    const max = Math.max(...preset.blocks.flatMap(b => b.intervals.map(iv => iv.effort)));
+    if (max <= 55) return 'Beginner';
+    if (max <= 75) return 'Easy';
+    if (max <= 87) return 'Moderate';
+    if (max <= 95) return 'Hard';
+    return 'Very Hard';
+  }
 
-        // Clicking the active preset deselects it
-        if (card.classList.contains('preset-active')) {
-            card.classList.remove('preset-active');
-            container.innerHTML = '';
-            selectedPreset = null;
-            return;
-        }
+  function buildPresetGraph(preset) {
+    const flat = [];
+    preset.blocks.forEach(b => {
+      for (let r = 0; r < b.reps; r++) b.intervals.forEach(iv => flat.push(iv));
+    });
+    const totalDur = flat.reduce((s, iv) => s + iv.duration, 0);
+    const W = 400, H = 64, GAP = 2;
+    let x = 0;
+    const rects = flat.map(iv => {
+      const w = Math.max(2, (iv.duration / totalDur) * W - GAP);
+      const barH = Math.max(4, (iv.effort / 100) * H);
+      const hue = Math.round(120 - (iv.effort / 100) * 120);
+      const rect = `<rect x="${x.toFixed(1)}" y="${(H - barH).toFixed(1)}" width="${w.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="hsl(${hue},85%,50%)"/>`;
+      x += w + GAP;
+      return rect;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:8px 0 4px;">${rects.join('')}</svg>`;
+  }
 
-        container.innerHTML = '';
+  function buildPresetTable(preset) {
+    const rows = preset.blocks.map((b, bi) => {
+      const showHeader = preset.blocks.length > 1;
+      const repLabel = b.reps > 1 ? ` · ×${b.reps} reps` : '';
+      const header = showHeader
+        ? `<li class="stats-block-header"><span>Block ${bi + 1}${repLabel}</span></li>`
+        : (b.reps > 1 ? `<li class="stats-block-header"><span>×${b.reps} reps</span></li>` : '');
+      const ivRows = b.intervals.map(iv => {
+        const d = iv.duration >= 60
+          ? `${Math.floor(iv.duration / 60)}m${iv.duration % 60 > 0 ? ` ${iv.duration % 60}s` : ''}`
+          : `${iv.duration}s`;
+        return `<li><span>${iv.label}</span><span><span>${iv.effort}%</span><span>${d}</span></span></li>`;
+      }).join('');
+      return header + ivRows;
+    }).join('');
 
-        preset.blocks.forEach(blockDef => {
-            addBlock();
-            const block = container.querySelector('.block:last-child');
-            const intervalsContainer = block.querySelector('.block-intervals');
-            intervalsContainer.innerHTML = '';
+    return `<li class="stats-list-heading"><span>Interval</span><span><span>Effort</span><span>Time</span></span></li>
+            <ul class="stats-list">${rows}</ul>`;
+  }
 
-            blockDef.intervals.forEach(ivDef => {
-                addIntervalToBlock(block.querySelector('.block-footer button'));
-                const row = intervalsContainer.querySelector('.interval-row:last-child');
-                const inputs = row.querySelectorAll('input');
-                inputs[0].value = ivDef.label;
-                inputs[1].value = ivDef.effort;
-                inputs[2].value = Math.floor(ivDef.duration / 60);
-                inputs[3].value = ivDef.duration % 60 || '';
-            });
+  function openPresetModal(preset) {
+    const totalMins = Math.round(
+      preset.blocks.reduce((s, b) =>
+        s + b.intervals.reduce((si, iv) => si + iv.duration, 0) * b.reps, 0
+      ) / 60
+    );
+    const zones = [...new Set(
+      preset.blocks.flatMap(b => b.intervals.map(iv => effortToZone(iv.effort)))
+    )].sort();
+    const zoneTags = zones.map(z =>
+      `<span class="preset-zone-tag" style="color:${ZONE_LABELS[z].color};border-color:${ZONE_LABELS[z].color}40;background:${ZONE_LABELS[z].color}12;">${ZONE_LABELS[z].name}</span>`
+    ).join('');
 
-            block.querySelector('.block-reps').value = blockDef.reps;
-        });
+    document.getElementById('preset-tooltip-title').textContent = preset.name;
+    document.getElementById('preset-tooltip-body').innerHTML = `
+      <p class="preset-modal-desc">${preset.tooltip}</p>
+      <div class="stats-label">Effort Graph</div>
+      ${buildPresetGraph(preset)}
+      <div class="stats-label" style="margin-top:12px;">Intervals</div>
+      ${buildPresetTable(preset)}
+      <div class="preset-detail-grid">
+        <div class="preset-detail-item">
+          <span class="stats-label">Duration</span>
+          <span>${preset.open ? 'Open' : `${totalMins} min`}</span>
+        </div>
+        <div class="preset-detail-item">
+          <span class="stats-label">Difficulty</span>
+          <span>${presetDifficulty(preset)}</span>
+        </div>
+        <div class="preset-detail-item preset-detail-zones">
+          <span class="stats-label">Zones</span>
+          <div class="preset-zone-tags">${zoneTags}</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('preset-tooltip-overlay').classList.add('visible');
+  }
 
-        document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('preset-active'));
-        document.getElementById(`preset-${preset.id}`).classList.add('preset-active');
-        selectedPreset = preset;
-    }
+  renderPresets();
 
-    function closePresetTooltip() {
-        document.getElementById('preset-tooltip-overlay').classList.remove('visible');
-    }
-
-    function effortToZone(e) {
-        if (e <= 55) return 1;
-        if (e <= 75) return 2;
-        if (e <= 87) return 3;
-        if (e <= 95) return 4;
-        return 5;
-    }
-
-    const ZONE_LABELS = {
-        1: { name: 'Z1 Recovery',   color: '#4a9eff' },
-        2: { name: 'Z2 Endurance',  color: '#22ff66' },
-        3: { name: 'Z3 Tempo',      color: '#ff8c00' },
-        4: { name: 'Z4 Threshold',  color: '#ff3333' },
-        5: { name: 'Z5 VO2 Max',    color: '#cc2200' },
+  function shareSession() {
+    let url = `${location.origin}/session?code=${code}&name=`;
+    if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
+    const shareData = {
+      title: 'SYNCD — Join my workout',
+      text: `Join my SYNCD session! Use code ${code} or tap the link and enter your name.`,
+      url: url,
     };
-
-    function presetDifficulty(preset) {
-        if (preset.difficulty) return preset.difficulty;
-        const max = Math.max(...preset.blocks.flatMap(b => b.intervals.map(iv => iv.effort)));
-        if (max <= 55) return 'Beginner';
-        if (max <= 75) return 'Easy';
-        if (max <= 87) return 'Moderate';
-        if (max <= 95) return 'Hard';
-        return 'Very Hard';
+    if (navigator.share) {
+      navigator.share(shareData).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!'));
     }
-
-    function buildPresetGraph(preset) {
-        const flat = [];
-        preset.blocks.forEach(b => {
-            for (let r = 0; r < b.reps; r++) {
-                b.intervals.forEach(iv => flat.push(iv));
-            }
-        });
-        const totalDur = flat.reduce((s, iv) => s + iv.duration, 0);
-        const W = 400, H = 64, GAP = 2;
-        let x = 0;
-        const rects = flat.map(iv => {
-            const w = Math.max(2, (iv.duration / totalDur) * W - GAP);
-            const barH = Math.max(4, (iv.effort / 100) * H);
-            const hue = Math.round(120 - (iv.effort / 100) * 120);
-            const rect = `<rect x="${x.toFixed(1)}" y="${(H - barH).toFixed(1)}" width="${w.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="hsl(${hue},85%,50%)"/>`;
-            x += w + GAP;
-            return rect;
-        });
-        return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:8px 0 4px;">${rects.join('')}</svg>`;
-    }
-
-    function buildPresetTable(preset) {
-        const rows = preset.blocks.map((b, bi) => {
-            const showHeader = preset.blocks.length > 1;
-            const repLabel = b.reps > 1 ? ` · ×${b.reps} reps` : '';
-            const header = showHeader
-                ? `<li class="stats-block-header"><span>Block ${bi + 1}${repLabel}</span></li>`
-                : (b.reps > 1 ? `<li class="stats-block-header"><span>×${b.reps} reps</span></li>` : '');
-            const ivRows = b.intervals.map(iv => {
-                const d = iv.duration >= 60
-                    ? `${Math.floor(iv.duration / 60)}m${iv.duration % 60 > 0 ? ` ${iv.duration % 60}s` : ''}`
-                    : `${iv.duration}s`;
-                return `<li><span>${iv.label}</span><span><span>${iv.effort}%</span><span>${d}</span></span></li>`;
-            }).join('');
-            return header + ivRows;
-        }).join('');
-
-        return `<li class="stats-list-heading"><span>Interval</span><span><span>Effort</span><span>Time</span></span></li>
-                <ul class="stats-list">${rows}</ul>`;
-    }
-
-    function openPresetModal(preset) {
-        const totalMins = Math.round(
-            preset.blocks.reduce((s, b) =>
-                s + b.intervals.reduce((si, iv) => si + iv.duration, 0) * b.reps, 0
-            ) / 60
-        );
-
-        const zones = [...new Set(
-            preset.blocks.flatMap(b => b.intervals.map(iv => effortToZone(iv.effort)))
-        )].sort();
-
-        const zoneTags = zones.map(z =>
-            `<span class="preset-zone-tag" style="color:${ZONE_LABELS[z].color};border-color:${ZONE_LABELS[z].color}40;background:${ZONE_LABELS[z].color}12;">${ZONE_LABELS[z].name}</span>`
-        ).join('');
-
-        document.getElementById('preset-tooltip-title').textContent = preset.name;
-        document.getElementById('preset-tooltip-body').innerHTML = `
-            <p class="preset-modal-desc">${preset.tooltip}</p>
-            <div class="stats-label">Effort Graph</div>
-            ${buildPresetGraph(preset)}
-            <div class="stats-label" style="margin-top:12px;">Intervals</div>
-            ${buildPresetTable(preset)}
-            <div class="preset-detail-grid">
-                <div class="preset-detail-item">
-                    <span class="stats-label">Duration</span>
-                    <span>${preset.open ? 'Open' : `${totalMins} min`}</span>
-                </div>
-                <div class="preset-detail-item">
-                    <span class="stats-label">Difficulty</span>
-                    <span>${presetDifficulty(preset)}</span>
-                </div>
-                <div class="preset-detail-item preset-detail-zones">
-                    <span class="stats-label">Zones</span>
-                    <div class="preset-zone-tags">${zoneTags}</div>
-                </div>
-            </div>
-        `;
-        document.getElementById('preset-tooltip-overlay').classList.add('visible');
-    }
-
-    renderPresets();
-
-    function shareSession() {
-        let url = `${location.origin}/session?code=${code}&name=`;
-        if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
-        const shareData = {
-            title: 'SYNCD — Join my workout',
-            text: `Join my SYNCD session! Use code ${code} or tap the link and enter your name.`,
-            url: url
-        };
-        if (navigator.share) {
-            navigator.share(shareData).catch(() => {});
-        } else {
-            navigator.clipboard.writeText(url).then(() => {
-                alert('Link copied to clipboard!');
-            });
-        }
-    }
+  }
 </script>
 </body>
 </html>

@@ -1,508 +1,514 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYNCD — Live Session</title>
-    <link rel="stylesheet" href="/static/style.css?v=5">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SYNCD — Live Session</title>
+  <link rel="stylesheet" href="/static/components.css" />
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 
-<!-- Reconnect banner (hidden when connected) -->
+<!-- Reconnect banner -->
 <div id="reconnect-banner" class="reconnect-banner hidden">⟳ Reconnecting...</div>
 
+<!-- Session info modal -->
 <div id="session-info-overlay" onclick="closeSessionInfo()">
-    <div id="session-info-modal" onclick="event.stopPropagation()">
-        <div class="preset-modal-header">
-            <span class="preset-modal-title">Session Info</span>
-            <button class="modal-close-btn" onclick="closeSessionInfo()">✕</button>
-        </div>
-        <div id="session-info-body"></div>
+  <div id="session-info-modal" onclick="event.stopPropagation()">
+    <div class="preset-modal-header">
+      <span class="preset-modal-title">Session Info</span>
+      <button class="modal-close-btn" onclick="closeSessionInfo()">✕</button>
     </div>
+    <div id="session-info-body"></div>
+  </div>
 </div>
 
 <div class="card">
-    <div class="toolbar" style="justify-content:flex-end;">
-        <button class="icon-btn" onclick="openSessionInfo()" title="Session info">ℹ</button>
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div></div>
+    <button class="icon-btn" onclick="openSessionInfo()" title="Session info">ℹ</button>
+  </div>
+
+  <h1>Live Session</h1>
+  <div id="session-name-display" class="session-name hidden"></div>
+
+  <!-- Name entry (join via shared link) -->
+  <div id="name-entry" class="hidden">
+    <h2>Enter your name to join</h2>
+    <input class="inp" type="text" id="name-input" placeholder="Your name" maxlength="30"
+           style="margin-bottom:12px;" />
+    <button class="btn btn-primary" onclick="submitName()" style="width:100%;">Join Session</button>
+  </div>
+
+  <!-- Lobby -->
+  <div id="lobby">
+    <p style="color:var(--text-muted); font-size:13px;">
+      Session code: <strong id="lobby-code" style="color:var(--text); letter-spacing:2px;"></strong>
+    </p>
+    <h2 style="margin-top:12px;">Waiting for host to start...</h2>
+    <div id="countdown-display" class="countdown-display hidden"></div>
+    <div class="participant-list">
+      <ul id="participant-list"></ul>
     </div>
-    <h1>Live Session</h1>
-    <div id="session-name-display" class="session-name hidden"></div>
+  </div>
 
-    <!-- Name entry (used when joining via shared link) -->
-    <div id="name-entry" class="hidden">
-        <h2>Enter your name to join</h2>
-        <input class="inp" type="text" id="name-input" placeholder="Your name" maxlength="30">
-        <button class="btn btn-primary" onclick="submitName()" style="margin-top:12px; width:100%;">Join Session</button>
-    </div>
+  <!-- Live workout -->
+  <div id="workout" class="hidden">
+    <div class="interval-label" id="interval-label"></div>
+    <div class="effort-label" id="effort-label"></div>
+    <div class="effort-pct" id="effort-pct"></div>
 
-    <!-- Lobby (waiting) -->
-    <div id="lobby">
-        <p>Session: <strong id="lobby-code"></strong></p>
-        <h2>Waiting for host to start...</h2>
-        <div id="countdown-display" class="countdown-display hidden"></div>
-        <div class="participant-list">
-            <ul id="participant-list"></ul>
-        </div>
-    </div>
-
-    <!-- Live workout -->
-    <div id="workout" class="hidden">
-        <div class="interval-label" id="interval-label"></div>
-        <div class="effort-label" id="effort-label"></div>
-        <div class="effort-pct" id="effort-pct"></div>
-
-        <div class="timer-ring-container">
-            <svg class="timer-ring" viewBox="0 0 200 200" width="220" height="220">
-                <circle class="ring-track"
-                        cx="100" cy="100" r="90"
-                        fill="none" stroke="#222" stroke-width="10"/>
-                <circle class="ring-progress" id="ring-progress"
-                        cx="100" cy="100" r="90"
-                        fill="none" stroke="#22ff66" stroke-width="10"
-                        stroke-linecap="round"
-                        stroke-dasharray="565.5" stroke-dashoffset="0"
-                        transform="rotate(-90 100 100)"/>
-            </svg>
-            <div class="ring-center">
-                <div class="ring-time" id="timer">0:00</div>
-                <div id="status-badge" class="status-badge status-running">● Working</div>
-            </div>
-        </div>
-
-        <!-- Participants panel -->
-        <div class="participants-modal" id="participants-modal">
-            <div class="participants-modal-header" onclick="toggleParticipants()">
-                <span id="participants-count">Riders</span>
-                <span class="modal-chevron" id="modal-chevron">▲</span>
-            </div>
-            <ul class="participants-modal-list hidden" id="workout-participant-list"></ul>
-        </div>
-
-        <!-- Emoji bar -->
-        <div class="emoji-bar">
-            <button class="emoji-btn" onclick="sendEmote('👍')">👍</button>
-            <button class="emoji-btn" onclick="sendEmote('🥵')">🥵</button>
-            <button class="emoji-btn" onclick="sendEmote('🤘')">🤘</button>
-            <button class="emoji-btn" onclick="sendEmote('🙌')">🙌</button>
-            <button class="emoji-btn" onclick="sendEmote('😝')">😝</button>
-        </div>
-
-        <!-- Host-only controls -->
-        <div id="host-controls" class="hidden" style="margin-top: 12px;">
-            <div style="display:flex; gap:8px;">
-                <button id="pause-btn" class="btn btn-warning" onclick="togglePause()" style="flex:1;">Pause</button>
-                <button class="btn btn-danger" onclick="endWorkout()" style="flex:1;">End Workout</button>
-            </div>
-        </div>
+    <div class="timer-ring-container">
+      <svg class="timer-ring" viewBox="0 0 200 200" width="220" height="220">
+        <circle class="ring-track"
+                cx="100" cy="100" r="90"
+                fill="none" stroke="#ffffff" stroke-width="10"/>
+        <circle class="ring-progress" id="ring-progress"
+                cx="100" cy="100" r="90"
+                fill="none" stroke="#62D136" stroke-width="10"
+                stroke-linecap="round"
+                stroke-dasharray="565.5" stroke-dashoffset="0"
+                transform="rotate(-90 100 100)"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-time" id="timer">0:00</div>
+        <div id="status-badge" class="status-badge status-running">● Working</div>
+      </div>
     </div>
 
-    <!-- Block break -->
-    <div id="block-break" class="hidden">
-        <h2 id="block-break-heading">Block Complete!</h2>
-        <p class="status">Waiting for host to continue...</p>
-        <button id="continue-btn" class="btn btn-primary hidden" onclick="continueWorkout()" style="width:100%; margin-top:16px;">Continue</button>
-        <div class="emoji-bar" style="margin-top:24px;">
-            <button class="emoji-btn" onclick="sendEmote('👍')">👍</button>
-            <button class="emoji-btn" onclick="sendEmote('🥵')">🥵</button>
-            <button class="emoji-btn" onclick="sendEmote('🤘')">🤘</button>
-            <button class="emoji-btn" onclick="sendEmote('🙌')">🙌</button>
-            <button class="emoji-btn" onclick="sendEmote('😝')">😝</button>
-        </div>
+    <!-- Participants panel -->
+    <div class="participants-modal" id="participants-modal">
+      <div class="participants-modal-header" onclick="toggleParticipants()">
+        <span id="participants-count">Riders</span>
+        <span class="modal-chevron" id="modal-chevron">▲</span>
+      </div>
+      <ul class="participants-modal-list hidden" id="workout-participant-list"></ul>
     </div>
 
-    <!-- Complete -->
-    <div id="complete" class="hidden">
-        <h2>Workout Complete!</h2>
-        <p class="status">Great ride, everyone!</p>
-        <div id="stats-container"></div>
-        <button id="copy-log-btn" class="btn btn-secondary hidden" onclick="copySessionLog()" style="margin-top:16px; width:100%;">📋 Copy Session Log</button>
-        <button class="btn btn-primary" onclick="window.location.href='/'" style="margin-top:8px; width:100%;">Back to Home</button>
+    <!-- Emoji bar -->
+    <div class="emoji-bar">
+      <button class="emoji-btn" onclick="sendEmote('👍')">👍</button>
+      <button class="emoji-btn" onclick="sendEmote('🥵')">🥵</button>
+      <button class="emoji-btn" onclick="sendEmote('🤘')">🤘</button>
+      <button class="emoji-btn" onclick="sendEmote('🙌')">🙌</button>
+      <button class="emoji-btn" onclick="sendEmote('😝')">😝</button>
     </div>
+
+    <!-- Host controls -->
+    <div id="host-controls" class="hidden" style="margin-top:16px;">
+      <div style="display:flex; gap:8px;">
+        <button id="pause-btn" class="btn btn-warning" onclick="togglePause()" style="flex:1;">Pause</button>
+        <button class="btn btn-danger" onclick="endWorkout()" style="flex:1;">End Workout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Block break -->
+  <div id="block-break" class="hidden">
+    <h2 id="block-break-heading">Block Complete!</h2>
+    <p class="status">Waiting for host to continue...</p>
+    <button id="continue-btn" class="btn btn-primary hidden" onclick="continueWorkout()"
+            style="width:100%; margin-top:16px;">Continue</button>
+    <div class="emoji-bar" style="margin-top:20px;">
+      <button class="emoji-btn" onclick="sendEmote('👍')">👍</button>
+      <button class="emoji-btn" onclick="sendEmote('🥵')">🥵</button>
+      <button class="emoji-btn" onclick="sendEmote('🤘')">🤘</button>
+      <button class="emoji-btn" onclick="sendEmote('🙌')">🙌</button>
+      <button class="emoji-btn" onclick="sendEmote('😝')">😝</button>
+    </div>
+  </div>
+
+  <!-- Complete -->
+  <div id="complete" class="hidden">
+    <h2>Workout Complete! 🎉</h2>
+    <p class="status">Great ride, everyone!</p>
+    <div id="stats-container"></div>
+    <button id="copy-log-btn" class="btn btn-secondary hidden" onclick="copySessionLog()"
+            style="width:100%; margin-top:16px;">📋 Copy Session Log</button>
+    <button class="btn btn-primary" onclick="window.location.href='/'"
+            style="width:100%; margin-top:8px;">Back to Home</button>
+  </div>
 </div>
 
 <script>
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    let name = params.get('name');
-    const role = params.get('role') || 'attendee';
-    const sessionName = params.get('session') || '';
-    const token = params.get('token') || '';
-    let isPaused = false;
-    let currentDuration = 60;
-    const CIRCUMFERENCE = 565.5;
-    let participantsExpanded = false;
-    let ws;
-    let shouldReconnect = true;
-    let reconnectTimer = null;
-    let pingTimer = null;
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  let name = params.get('name');
+  const role = params.get('role') || 'attendee';
+  const sessionName = params.get('session') || '';
+  const token = params.get('token') || '';
+  let isPaused = false;
+  let currentDuration = 60;
+  const CIRCUMFERENCE = 565.5;
+  let participantsExpanded = false;
+  let ws;
+  let shouldReconnect = true;
+  let reconnectTimer = null;
+  let pingTimer = null;
+  let completedIntervals = [];
+  let sessionStartTime = null;
+  let presetName = '';
+  let currentParticipants = [];
+  let audioCtx = null;
 
-    function startPing() {
-        pingTimer = setInterval(() => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'ping' }));
-            }
-        }, 25000);
+  document.getElementById('lobby-code').textContent = code;
+
+  if (sessionName) {
+    const el = document.getElementById('session-name-display');
+    el.textContent = sessionName;
+    el.classList.remove('hidden');
+  }
+
+  // ── Audio ──────────────────────────────────────────────────────────────
+  function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+
+  function playBeep(freq = 880, duration = 0.15, volume = 0.3) {
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(volume, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+    } catch (e) {}
+  }
+
+  function beepIntervalStart() {
+    playBeep(880, 0.12);
+    setTimeout(() => playBeep(1100, 0.18, 0.4), 160);
+  }
+
+  function beepWarning() { playBeep(660, 0.1, 0.2); }
+
+  // ── Ping ───────────────────────────────────────────────────────────────
+  function startPing() {
+    pingTimer = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 25000);
+  }
+
+  function stopPing() {
+    clearInterval(pingTimer);
+    pingTimer = null;
+  }
+
+  // ── WebSocket ──────────────────────────────────────────────────────────
+  function connect() {
+    if (!name) return;
+    clearTimeout(reconnectTimer);
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsToken = token ? `?token=${encodeURIComponent(token)}` : '';
+    ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/${role}${wsToken}`);
+    ws.onmessage = handleMessage;
+    ws.onopen = () => {
+      document.getElementById('reconnect-banner').classList.add('hidden');
+      startPing();
+    };
+    ws.onclose = () => {
+      stopPing();
+      if (shouldReconnect) {
+        document.getElementById('reconnect-banner').classList.remove('hidden');
+        reconnectTimer = setTimeout(connect, 3000);
+      }
+    };
+    ws.onerror = () => { ws.close(); };
+  }
+
+  if (!name) {
+    document.getElementById('lobby').classList.add('hidden');
+    document.getElementById('name-entry').classList.remove('hidden');
+  } else {
+    connect();
+  }
+
+  function submitName() {
+    const input = document.getElementById('name-input').value.trim();
+    if (!input) return alert('Please enter your name');
+    name = input;
+    document.getElementById('name-entry').classList.add('hidden');
+    document.getElementById('lobby').classList.remove('hidden');
+    connect();
+  }
+
+  document.getElementById('name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitName();
+  });
+
+  // ── Message handler ────────────────────────────────────────────────────
+  function handleMessage(event) {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'participants') {
+      currentParticipants = data.names;
+      const lobbyList = document.getElementById('participant-list');
+      if (lobbyList) lobbyList.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
+      const workoutList = document.getElementById('workout-participant-list');
+      if (workoutList) workoutList.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
+      const count = document.getElementById('participants-count');
+      if (count) count.textContent = `${data.names.length} Rider${data.names.length !== 1 ? 's' : ''}`;
     }
-    function stopPing() {
-        clearInterval(pingTimer);
-        pingTimer = null;
-    }
-    let completedIntervals = [];
-    let sessionStartTime = null;
-    let presetName = '';
-    let currentParticipants = [];
-    let audioCtx = null;
 
-    document.getElementById('lobby-code').textContent = code;
-
-    if (sessionName) {
-        const el = document.getElementById('session-name-display');
-        el.textContent = sessionName;
-        el.classList.remove('hidden');
+    if (data.type === 'workout_ready') {
+      presetName = data.presetName || '';
     }
 
-    // ── Audio ──────────────────────────────────────────────────────────────
-    function getAudioCtx() {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        return audioCtx;
+    if (data.type === 'countdown') {
+      const el = document.getElementById('countdown-display');
+      el.classList.remove('hidden');
+      el.textContent = data.count;
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.animation = '';
+      if (data.count <= 3) playBeep(660, 0.1, 0.25);
     }
 
-    function playBeep(freq = 880, duration = 0.15, volume = 0.3) {
-        try {
-            const ctx = getAudioCtx();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(volume, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + duration);
-        } catch (e) {}
+    if (data.type === 'interval_start') {
+      document.getElementById('block-break').classList.add('hidden');
+      document.getElementById('continue-btn').classList.add('hidden');
+      document.getElementById('countdown-display').classList.add('hidden');
+      document.getElementById('lobby').classList.add('hidden');
+      document.getElementById('workout').classList.remove('hidden');
+
+      if (data.index === 0) {
+        sessionStartTime = Date.now();
+        if (sessionName) document.querySelector('h1').textContent = sessionName;
+        if (presetName) {
+          const sub = document.getElementById('session-name-display');
+          sub.textContent = presetName;
+          sub.classList.remove('hidden');
+        }
+      }
+      completedIntervals.push({ label: data.label, effort: data.effort, duration: data.duration, block: data.block ?? 0 });
+
+      beepIntervalStart();
+
+      if (role === 'host') {
+        document.getElementById('host-controls').classList.remove('hidden');
+      }
+
+      const repInfo = data.totalReps > 1 ? ` — Rep ${data.rep} of ${data.totalReps}` : '';
+      document.getElementById('interval-label').textContent = `Interval ${data.index + 1} of ${data.total}${repInfo}`;
+      document.getElementById('effort-label').textContent = data.label;
+      document.getElementById('effort-pct').textContent = `${data.effort}% Effort`;
+
+      currentDuration = data.duration;
+
+      const ring = document.getElementById('ring-progress');
+      ring.style.transition = 'none';
+      ring.style.strokeDashoffset = '0';
+      requestAnimationFrame(() => { ring.style.transition = ''; });
+
+      const workoutEl = document.getElementById('workout');
+      workoutEl.classList.remove('section-enter');
+      void workoutEl.offsetWidth;
+      workoutEl.classList.add('section-enter');
+
+      setPaused(false);
     }
 
-    // Double beep for interval start, single low beep for 3-second warning
-    function beepIntervalStart() {
-        playBeep(880, 0.12);
-        setTimeout(() => playBeep(1100, 0.18, 0.4), 160);
+    if (data.type === 'tick') {
+      if (data.ts && Date.now() - data.ts > 2000) return;
+      const mins = Math.floor(data.remaining / 60);
+      const secs = String(data.remaining % 60).padStart(2, '0');
+      document.getElementById('timer').textContent = `${mins}:${secs}`;
+      const fraction = data.remaining / (data.duration || currentDuration);
+      document.getElementById('ring-progress').style.strokeDashoffset = CIRCUMFERENCE * (1 - fraction);
+      if (data.remaining === 3) beepWarning();
     }
 
-    function beepWarning() {
-        playBeep(660, 0.1, 0.2);
+    if (data.type === 'paused')  { setPaused(true); }
+    if (data.type === 'resumed') { setPaused(false); }
+
+    if (data.type === 'block_complete') {
+      document.getElementById('workout').classList.add('hidden');
+      document.getElementById('block-break').classList.remove('hidden');
+      document.getElementById('block-break-heading').textContent =
+        `Block ${data.block} of ${data.totalBlocks} Complete!`;
+      if (role === 'host') {
+        document.getElementById('continue-btn').classList.remove('hidden');
+      }
     }
 
-    // ── WebSocket ──────────────────────────────────────────────────────────
-    function connect() {
-        if (!name) return;
-        clearTimeout(reconnectTimer);
-        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsToken = token ? `?token=${encodeURIComponent(token)}` : '';
-        ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/${role}${wsToken}`);
-        ws.onmessage = handleMessage;
-        ws.onopen = () => {
-            document.getElementById('reconnect-banner').classList.add('hidden');
-            startPing();
-        };
-        ws.onclose = () => {
-            stopPing();
-            if (shouldReconnect) {
-                document.getElementById('reconnect-banner').classList.remove('hidden');
-                reconnectTimer = setTimeout(connect, 3000);
-            }
-        };
-        ws.onerror = () => { ws.close(); };
+    if (data.type === 'workout_complete') {
+      shouldReconnect = false;
+      stopPing();
+      renderStats();
+      document.getElementById('workout').classList.add('hidden');
+      document.getElementById('block-break').classList.add('hidden');
+      if (role === 'host') {
+        document.getElementById('copy-log-btn').classList.remove('hidden');
+      }
+      const completeEl = document.getElementById('complete');
+      completeEl.classList.remove('hidden');
+      completeEl.classList.add('section-enter');
     }
 
-    if (!name) {
-        document.getElementById('lobby').classList.add('hidden');
-        document.getElementById('name-entry').classList.remove('hidden');
-    } else {
-        connect();
+    if (data.type === 'emote') { showFloatingEmoji(data.emoji); }
+
+    if (data.type === 'error') {
+      shouldReconnect = false;
+      alert(data.message);
+      window.location.href = '/';
+    }
+  }
+
+  // ── Controls ───────────────────────────────────────────────────────────
+  function setPaused(paused) {
+    isPaused = paused;
+    const badge = document.getElementById('status-badge');
+    badge.textContent = paused ? '⏸ Paused' : '● Working';
+    badge.className = paused ? 'status-badge status-paused' : 'status-badge status-running';
+    document.getElementById('ring-progress').style.stroke = paused ? '#555' : '#62D136';
+    if (role === 'host') {
+      document.getElementById('pause-btn').textContent = paused ? 'Resume' : 'Pause';
+    }
+  }
+
+  function toggleParticipants() {
+    participantsExpanded = !participantsExpanded;
+    document.getElementById('workout-participant-list').classList.toggle('hidden', !participantsExpanded);
+    document.getElementById('modal-chevron').textContent = participantsExpanded ? '▼' : '▲';
+  }
+
+  function togglePause() {
+    ws.send(JSON.stringify({ type: isPaused ? 'resume' : 'pause' }));
+  }
+
+  function endWorkout() {
+    if (confirm('End the workout for everyone?')) {
+      ws.send(JSON.stringify({ type: 'end' }));
+    }
+  }
+
+  function continueWorkout() {
+    ws.send(JSON.stringify({ type: 'continue_block' }));
+    document.getElementById('continue-btn').classList.add('hidden');
+  }
+
+  // ── Emoji ──────────────────────────────────────────────────────────────
+  function sendEmote(emoji) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'emote', emoji }));
+    }
+  }
+
+  function showFloatingEmoji(emoji) {
+    const el = document.createElement('div');
+    el.className = 'floating-emoji';
+    el.textContent = emoji;
+    el.style.left = `${15 + Math.random() * 70}%`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2200);
+  }
+
+  // ── Stats ──────────────────────────────────────────────────────────────
+  function renderStats() {
+    const totalSecs = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
+    const mins = Math.floor(totalSecs / 60);
+    const secs = String(totalSecs % 60).padStart(2, '0');
+
+    const blockGroups = [];
+    let lastBlock = -1;
+    for (const iv of completedIntervals) {
+      if (iv.block !== lastBlock) { blockGroups.push([]); lastBlock = iv.block; }
+      blockGroups[blockGroups.length - 1].push(iv);
     }
 
-    function submitName() {
-        const input = document.getElementById('name-input').value.trim();
-        if (!input) return alert('Please enter your name');
-        name = input;
-        document.getElementById('name-entry').classList.add('hidden');
-        document.getElementById('lobby').classList.remove('hidden');
-        connect();
-    }
+    const W = 420, H = 100, BLOCK_GAP = 14, BAR_GAP = 3;
+    const n = completedIntervals.length;
+    const numBlocks = blockGroups.length;
+    const totalGap = (numBlocks - 1) * BLOCK_GAP;
+    const barW = n > 0 ? Math.max(4, Math.min(32, (W - 20 - totalGap) / n - BAR_GAP)) : 0;
 
-    document.getElementById('name-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') submitName();
+    const rects = [];
+    let x = 10;
+    blockGroups.forEach((group, bi) => {
+      group.forEach(iv => {
+        const barH = (iv.effort / 100) * H;
+        const hue = Math.round(120 - (iv.effort / 100) * 120);
+        rects.push(`<rect x="${x.toFixed(1)}" y="${(H - barH).toFixed(1)}" width="${barW}" height="${barH.toFixed(1)}" rx="3" fill="hsl(${hue},85%,50%)"/>`);
+        x += barW + BAR_GAP;
+      });
+      if (bi < numBlocks - 1) x += BLOCK_GAP;
     });
 
-    // ── Message handler ────────────────────────────────────────────────────
-    function handleMessage(event) {
-        const data = JSON.parse(event.data);
+    const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:12px 0;">${rects.join('')}</svg>`;
 
-        if (data.type === 'participants') {
-            currentParticipants = data.names;
-            const lobbyList = document.getElementById('participant-list');
-            if (lobbyList) lobbyList.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
-            const workoutList = document.getElementById('workout-participant-list');
-            if (workoutList) workoutList.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
-            const count = document.getElementById('participants-count');
-            if (count) count.textContent = `${data.names.length} Rider${data.names.length !== 1 ? 's' : ''}`;
-        }
+    const listRows = blockGroups.map((group, bi) => {
+      const header = numBlocks > 1 ? `<li class="stats-block-header"><span>Block ${bi + 1}</span></li>` : '';
+      const rows = group.map(iv =>
+        `<li><span>${iv.label}</span><span><span>${iv.effort}%</span><span>${iv.duration}s</span></span></li>`
+      ).join('');
+      return header + rows;
+    }).join('');
 
-        if (data.type === 'workout_ready') {
-            presetName = data.presetName || '';
-        }
+    document.getElementById('stats-container').innerHTML = `
+      <div class="stats-section">
+        <div class="stats-label">Effort Over Time</div>
+        ${svg}
+        <div class="stats-label" style="margin-top:16px;">Intervals</div>
+        <li class="stats-list-heading"><span>Interval</span><span><span>Effort</span><span>Time</span></span></li>
+        <ul class="stats-list">${listRows}</ul>
+        <div class="stats-total">Total time: ${mins}m ${secs}s</div>
+      </div>`;
+  }
 
-        if (data.type === 'countdown') {
-            const el = document.getElementById('countdown-display');
-            el.classList.remove('hidden');
-            el.textContent = data.count;
-            el.style.animation = 'none';
-            void el.offsetWidth;
-            el.style.animation = '';
-            if (data.count <= 3) playBeep(660, 0.1, 0.25);
-        }
+  // ── Session log ────────────────────────────────────────────────────────
+  function copySessionLog() {
+    const totalSecs = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
+    const mins = Math.floor(totalSecs / 60);
+    const secs = String(totalSecs % 60).padStart(2, '0');
+    const lines = [];
+    if (sessionName) lines.push(`Session: ${sessionName}`);
+    lines.push(`Code: ${code}`);
+    lines.push(`Participants: ${currentParticipants.join(', ')}`);
+    lines.push(`Total time: ${mins}m ${secs}s`);
+    lines.push('');
 
-        if (data.type === 'interval_start') {
-            document.getElementById('block-break').classList.add('hidden');
-            document.getElementById('continue-btn').classList.add('hidden');
-            document.getElementById('countdown-display').classList.add('hidden');
-            document.getElementById('lobby').classList.add('hidden');
-            document.getElementById('workout').classList.remove('hidden');
-
-            if (data.index === 0) {
-                sessionStartTime = Date.now();
-                if (sessionName) document.querySelector('h1').textContent = sessionName;
-                if (presetName) {
-                    const sub = document.getElementById('session-name-display');
-                    sub.textContent = presetName;
-                    sub.classList.remove('hidden');
-                }
-            }
-            completedIntervals.push({ label: data.label, effort: data.effort, duration: data.duration, block: data.block ?? 0 });
-
-            beepIntervalStart();
-
-            if (role === 'host') {
-                document.getElementById('host-controls').classList.remove('hidden');
-            }
-
-            const repInfo = data.totalReps > 1 ? ` — Rep ${data.rep} of ${data.totalReps}` : '';
-            document.getElementById('interval-label').textContent = `Interval ${data.index + 1} of ${data.total}${repInfo}`;
-            document.getElementById('effort-label').textContent = data.label;
-            document.getElementById('effort-pct').textContent = `${data.effort}% Effort`;
-
-            currentDuration = data.duration;
-
-            const ring = document.getElementById('ring-progress');
-            ring.style.transition = 'none';
-            ring.style.strokeDashoffset = '0';
-            requestAnimationFrame(() => { ring.style.transition = ''; });
-
-            const workoutEl = document.getElementById('workout');
-            workoutEl.classList.remove('section-enter');
-            void workoutEl.offsetWidth;
-            workoutEl.classList.add('section-enter');
-
-            setPaused(false);
-        }
-
-        if (data.type === 'tick') {
-            if (data.ts && Date.now() - data.ts > 2000) return;
-            const mins = Math.floor(data.remaining / 60);
-            const secs = String(data.remaining % 60).padStart(2, '0');
-            document.getElementById('timer').textContent = `${mins}:${secs}`;
-
-            const fraction = data.remaining / (data.duration || currentDuration);
-            document.getElementById('ring-progress').style.strokeDashoffset = CIRCUMFERENCE * (1 - fraction);
-
-            if (data.remaining === 3) beepWarning();
-        }
-
-        if (data.type === 'paused') { setPaused(true); }
-        if (data.type === 'resumed') { setPaused(false); }
-
-        if (data.type === 'block_complete') {
-            document.getElementById('workout').classList.add('hidden');
-            document.getElementById('block-break').classList.remove('hidden');
-            document.getElementById('block-break-heading').textContent =
-                `Block ${data.block} of ${data.totalBlocks} Complete!`;
-            if (role === 'host') {
-                document.getElementById('continue-btn').classList.remove('hidden');
-            }
-        }
-
-        if (data.type === 'workout_complete') {
-            shouldReconnect = false;
-            stopPing();
-            renderStats();
-            document.getElementById('workout').classList.add('hidden');
-            document.getElementById('block-break').classList.add('hidden');
-            if (role === 'host') {
-                document.getElementById('copy-log-btn').classList.remove('hidden');
-            }
-            const completeEl = document.getElementById('complete');
-            completeEl.classList.remove('hidden');
-            completeEl.classList.add('section-enter');
-        }
-
-        if (data.type === 'emote') { showFloatingEmoji(data.emoji); }
-
-        if (data.type === 'error') {
-            shouldReconnect = false;
-            alert(data.message);
-            window.location.href = '/';
-        }
+    const blockGroups = [];
+    let lastBlock = -1;
+    for (const iv of completedIntervals) {
+      if (iv.block !== lastBlock) { blockGroups.push([]); lastBlock = iv.block; }
+      blockGroups[blockGroups.length - 1].push(iv);
     }
+    blockGroups.forEach((group, bi) => {
+      if (blockGroups.length > 1) lines.push(`Block ${bi + 1}`);
+      group.forEach(iv => lines.push(`  ${iv.label} — ${iv.effort}% effort, ${iv.duration}s`));
+      lines.push('');
+    });
 
-    // ── Controls ───────────────────────────────────────────────────────────
-    function setPaused(paused) {
-        isPaused = paused;
-        const badge = document.getElementById('status-badge');
-        badge.textContent = paused ? '⏸ Paused' : '● Working';
-        badge.className = paused ? 'status-badge status-paused' : 'status-badge status-running';
-        document.getElementById('ring-progress').style.stroke = paused ? '#555' : '#22ff66';
-        if (role === 'host') {
-            document.getElementById('pause-btn').textContent = paused ? 'Resume' : 'Pause';
-        }
-    }
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      const btn = document.getElementById('copy-log-btn');
+      btn.textContent = '✓ Copied';
+      setTimeout(() => { btn.textContent = '📋 Copy Session Log'; }, 2000);
+    });
+  }
 
-    function toggleParticipants() {
-        participantsExpanded = !participantsExpanded;
-        document.getElementById('workout-participant-list').classList.toggle('hidden', !participantsExpanded);
-        document.getElementById('modal-chevron').textContent = participantsExpanded ? '▼' : '▲';
-    }
+  // ── Session info modal ─────────────────────────────────────────────────
+  function openSessionInfo() {
+    const items = [];
+    if (sessionName) items.push(`<div class="preset-detail-item"><span class="stats-label">Session</span><span>${sessionName}</span></div>`);
+    items.push(`<div class="preset-detail-item"><span class="stats-label">Code</span><span>${code}</span></div>`);
+    if (presetName) items.push(`<div class="preset-detail-item"><span class="stats-label">Preset</span><span>${presetName}</span></div>`);
+    items.push(`<div class="preset-detail-item"><span class="stats-label">Riders</span><span>${currentParticipants.join(', ') || '—'}</span></div>`);
+    document.getElementById('session-info-body').innerHTML =
+      `<div class="preset-detail-grid" style="border:none;padding:0;margin:0;">${items.join('')}</div>`;
+    document.getElementById('session-info-overlay').classList.add('visible');
+  }
 
-    function togglePause() {
-        ws.send(JSON.stringify({ type: isPaused ? 'resume' : 'pause' }));
-    }
-
-    function endWorkout() {
-        if (confirm('End the workout for everyone?')) {
-            ws.send(JSON.stringify({ type: 'end' }));
-        }
-    }
-
-    function continueWorkout() {
-        ws.send(JSON.stringify({ type: 'continue_block' }));
-        document.getElementById('continue-btn').classList.add('hidden');
-    }
-
-    // ── Emoji ──────────────────────────────────────────────────────────────
-    function sendEmote(emoji) {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'emote', emoji }));
-        }
-    }
-
-    function showFloatingEmoji(emoji) {
-        const el = document.createElement('div');
-        el.className = 'floating-emoji';
-        el.textContent = emoji;
-        el.style.left = `${15 + Math.random() * 70}%`;
-        document.body.appendChild(el);
-        setTimeout(() => el.remove(), 2200);
-    }
-
-    // ── Stats ──────────────────────────────────────────────────────────────
-    function renderStats() {
-        const totalSecs = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
-        const mins = Math.floor(totalSecs / 60);
-        const secs = String(totalSecs % 60).padStart(2, '0');
-
-        const blockGroups = [];
-        let lastBlock = -1;
-        for (const iv of completedIntervals) {
-            if (iv.block !== lastBlock) { blockGroups.push([]); lastBlock = iv.block; }
-            blockGroups[blockGroups.length - 1].push(iv);
-        }
-
-        const W = 420, H = 100, BLOCK_GAP = 14, BAR_GAP = 3;
-        const n = completedIntervals.length;
-        const numBlocks = blockGroups.length;
-        const totalGap = (numBlocks - 1) * BLOCK_GAP;
-        const barW = n > 0 ? Math.max(4, Math.min(32, (W - 20 - totalGap) / n - BAR_GAP)) : 0;
-
-        const rects = [];
-        let x = 10;
-        blockGroups.forEach((group, bi) => {
-            group.forEach(iv => {
-                const barH = (iv.effort / 100) * H;
-                const hue = Math.round(120 - (iv.effort / 100) * 120);
-                rects.push(`<rect x="${x.toFixed(1)}" y="${(H - barH).toFixed(1)}" width="${barW}" height="${barH.toFixed(1)}" rx="3" fill="hsl(${hue},85%,50%)"/>`);
-                x += barW + BAR_GAP;
-            });
-            if (bi < numBlocks - 1) x += BLOCK_GAP;
-        });
-
-        const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:12px 0;">${rects.join('')}</svg>`;
-
-        const listRows = blockGroups.map((group, bi) => {
-            const header = numBlocks > 1 ? `<li class="stats-block-header"><span>Block ${bi + 1}</span></li>` : '';
-            const rows = group.map(iv =>
-                `<li><span>${iv.label}</span><span><span>${iv.effort}%</span><span>${iv.duration}s</span></span></li>`
-            ).join('');
-            return header + rows;
-        }).join('');
-
-        document.getElementById('stats-container').innerHTML = `
-            <div class="stats-section">
-                <div class="stats-label">Effort Over Time</div>
-                ${svg}
-                <div class="stats-label" style="margin-top:16px;">Intervals</div>
-                <li class="stats-list-heading"><span>Interval</span><span><span>Effort</span><span>Time</span></span></li>
-                <ul class="stats-list">${listRows}</ul>
-                <div class="stats-total">Total time: ${mins}m ${secs}s</div>
-            </div>`;
-    }
-
-    // ── Session log ────────────────────────────────────────────────────────
-    function copySessionLog() {
-        const totalSecs = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
-        const mins = Math.floor(totalSecs / 60);
-        const secs = String(totalSecs % 60).padStart(2, '0');
-
-        const lines = [];
-        if (sessionName) lines.push(`Session: ${sessionName}`);
-        lines.push(`Code: ${code}`);
-        lines.push(`Participants: ${currentParticipants.join(', ')}`);
-        lines.push(`Total time: ${mins}m ${secs}s`);
-        lines.push('');
-
-        const blockGroups = [];
-        let lastBlock = -1;
-        for (const iv of completedIntervals) {
-            if (iv.block !== lastBlock) { blockGroups.push([]); lastBlock = iv.block; }
-            blockGroups[blockGroups.length - 1].push(iv);
-        }
-
-        blockGroups.forEach((group, bi) => {
-            if (blockGroups.length > 1) lines.push(`Block ${bi + 1}`);
-            group.forEach(iv => lines.push(`  ${iv.label} — ${iv.effort}% effort, ${iv.duration}s`));
-            lines.push('');
-        });
-
-        navigator.clipboard.writeText(lines.join('\n')).then(() => {
-            const btn = document.getElementById('copy-log-btn');
-            btn.textContent = '✓';
-            setTimeout(() => { btn.textContent = '📋'; }, 2000);
-        });
-    }
-
-    // ── Session info modal ─────────────────────────────────────────────────
-    function openSessionInfo() {
-        const items = [];
-        if (sessionName) items.push(`<div class="preset-detail-item"><span class="stats-label">Session</span><span>${sessionName}</span></div>`);
-        items.push(`<div class="preset-detail-item"><span class="stats-label">Code</span><span>${code}</span></div>`);
-        if (presetName) items.push(`<div class="preset-detail-item"><span class="stats-label">Preset</span><span>${presetName}</span></div>`);
-        items.push(`<div class="preset-detail-item"><span class="stats-label">Riders</span><span>${currentParticipants.join(', ') || '—'}</span></div>`);
-        document.getElementById('session-info-body').innerHTML =
-            `<div class="preset-detail-grid" style="border:none;padding:0;margin:0;">${items.join('')}</div>`;
-        document.getElementById('session-info-overlay').classList.add('visible');
-    }
-
-    function closeSessionInfo() {
-        document.getElementById('session-info-overlay').classList.remove('visible');
-    }
+  function closeSessionInfo() {
+    document.getElementById('session-info-overlay').classList.remove('visible');
+  }
 </script>
 </body>
 </html>

@@ -1,123 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYNCD</title>
-    <link rel="stylesheet" href="/static/style.css?v=5">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SYNCD</title>
+  <link rel="stylesheet" href="/static/components.css" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div class="card">
-    <div class="toolbar">
-        <a href="/components" style="text-decoration:none; margin-right:auto;">
-            <button class="secondary" style="padding:6px 14px; font-size:0.8rem; min-height:unset;">Components</button>
-        </a>
-        <a href="/account" id="account-btn" style="display:none;">
-            <button class="secondary" style="padding:6px 14px; font-size:0.8rem; min-height:unset;">My Account</button>
-        </a>
-        <button class="secondary" id="logout-btn" onclick="logout()" style="display:none; padding:6px 14px; font-size:0.8rem; min-height:unset;">Log out</button>
-    </div>
+
+  <div style="text-align:center; margin-bottom:28px;">
     <h1>SYNCD</h1>
-    <h2 style="color:var(--muted);">Synchronized cycling workouts with friends</h2>
+    <p style="color:var(--text-muted); font-size:0.9rem;">Synchronized cycling workouts with friends</p>
+  </div>
 
-    <div id="join-section">
-        <input type="text" id="join-code" placeholder="Enter session code (e.g. AB1C2D)" maxlength="6" style="text-transform:uppercase">
-        <input type="text" id="join-name" placeholder="Your name">
-        <button onclick="joinSession()">Join Session</button>
-        <button class="secondary" onclick="showHost()">Host a Session</button>
+  <div class="card">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <a id="account-btn" href="/account" style="display:none; text-decoration:none;">
+          <button class="btn btn-ghost btn-sm">My Account</button>
+        </a>
+        <button id="logout-btn" class="btn btn-ghost btn-sm" onclick="logout()" style="display:none;">Log out</button>
+      </div>
     </div>
 
-    <div id="host-section" class="hidden">
-        <!-- Name input shown only when not logged in -->
-        <input type="text" id="host-name" placeholder="Your name (host)" id="host-name">
-        <input type="text" id="session-name-input" placeholder="Session name (optional, e.g. Morning Ride)">
-        <button onclick="createSession()">Create Session</button>
-        <button class="secondary" onclick="showJoin()">Back</button>
+    <!-- Join section (default) -->
+    <div id="section-join">
+      <h2>Join a Session</h2>
+      <div style="margin-bottom:12px;">
+        <input class="inp inp-code" type="text" id="join-code"
+               placeholder="ABCD12" maxlength="6" autocomplete="off"
+               oninput="this.value = this.value.toUpperCase()" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <input class="inp" type="text" id="join-name" placeholder="Your name" maxlength="30" />
+      </div>
+      <button class="btn btn-primary" onclick="joinSession()" style="width:100%;">Join Session</button>
+      <hr />
+      <button class="btn btn-secondary" onclick="showHost()" style="width:100%;">Host a Session</button>
     </div>
-</div>
 
-<script>
+    <!-- Host section (hidden) -->
+    <div id="section-host" style="display:none;">
+      <h2>Create a Session</h2>
+      <div id="host-name-field" style="margin-bottom:12px;">
+        <input class="inp" type="text" id="host-name" placeholder="Your name" maxlength="30" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <input class="inp" type="text" id="host-session-name"
+               placeholder="Session name (optional)" maxlength="50" />
+      </div>
+      <button class="btn btn-primary" onclick="createSession()" style="width:100%;">Create Session</button>
+      <button class="btn btn-ghost" onclick="showJoin()" style="width:100%; margin-top:8px;">← Back</button>
+    </div>
+  </div>
+
+  <script>
     let _supabase = null;
-    let _session = null;
+    let _userName = '';
 
     async function initAuth() {
-        try {
-            const res = await fetch('/config');
-            const cfg = await res.json();
-            if (!cfg.supabase_url) return; // no auth configured (local dev)
-            _supabase = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
-            const { data } = await _supabase.auth.getSession();
-            _session = data.session;
-            if (_session) {
-                document.getElementById('logout-btn').style.display = '';
-                document.getElementById('account-btn').style.display = '';
-            }
-        } catch (e) {
-            // auth not available, continue without it
+      try {
+        const res = await fetch('/config');
+        const cfg = await res.json();
+        if (!cfg.supabase_url) return;
+        _supabase = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session) {
+          _userName = session.user.user_metadata?.full_name || session.user.email;
+          document.getElementById('account-btn').style.display = '';
+          document.getElementById('logout-btn').style.display = '';
+          document.getElementById('join-name').value = _userName;
+          document.getElementById('host-name').value = _userName;
+          document.getElementById('host-name-field').style.display = 'none';
         }
-    }
-
-    async function logout() {
-        if (!_supabase) return;
-        await _supabase.auth.signOut();
-        window.location.reload();
+      } catch (e) {}
     }
 
     initAuth();
 
-    async function showHost() {
-        // Ensure auth is ready before proceeding
-        if (!_supabase) await initAuth();
-
-        if (_supabase && !_session) {
-            // Not logged in — redirect to auth, return here after
-            window.location.href = '/auth';
-            return;
-        }
-
-        document.getElementById('join-section').classList.add('hidden');
-        document.getElementById('host-section').classList.remove('hidden');
-
-        // Pre-fill host name from account, hide the input
-        if (_session) {
-            const name = _session.user.user_metadata?.full_name || _session.user.email.split('@')[0];
-            const nameInput = document.getElementById('host-name');
-            nameInput.value = name;
-            nameInput.style.display = 'none';
-        }
+    function showHost() {
+      document.getElementById('section-join').style.display = 'none';
+      document.getElementById('section-host').style.display = '';
+      if (!_userName) document.getElementById('host-name').focus();
     }
 
     function showJoin() {
-        document.getElementById('host-section').classList.add('hidden');
-        document.getElementById('join-section').classList.remove('hidden');
+      document.getElementById('section-host').style.display = 'none';
+      document.getElementById('section-join').style.display = '';
     }
 
     async function createSession() {
-        const name = document.getElementById('host-name').value.trim();
-        if (!name) return alert('Please enter your name');
-        const sessionName = document.getElementById('session-name-input').value.trim();
-
-        const headers = { 'Content-Type': 'application/json' };
-        if (_session?.access_token) {
-            headers['Authorization'] = `Bearer ${_session.access_token}`;
+      const name = _userName || document.getElementById('host-name').value.trim();
+      const sessionName = document.getElementById('host-session-name').value.trim();
+      if (!name) { alert('Please enter your name'); return; }
+      try {
+        let token = '';
+        if (_supabase) {
+          const { data: { session } } = await _supabase.auth.getSession();
+          token = session?.access_token || '';
         }
-
-        const res = await fetch('/create-session', { method: 'POST', headers });
+        const res = await fetch('/create-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ host_name: name }),
+        });
         const data = await res.json();
-
         let url = `/host?code=${data.code}&name=${encodeURIComponent(name)}`;
         if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
-        if (_session?.access_token) url += `&token=${encodeURIComponent(_session.access_token)}`;
+        if (token) url += `&token=${encodeURIComponent(token)}`;
         window.location.href = url;
+      } catch (e) {
+        alert('Could not create session. Please try again.');
+      }
     }
 
     function joinSession() {
-        const code = document.getElementById('join-code').value.trim().toUpperCase();
-        const name = document.getElementById('join-name').value.trim();
-        if (!code || !name) return alert('Please enter both a code and your name');
-        window.location.href = `/session?code=${code}&name=${encodeURIComponent(name)}`;
+      const code = document.getElementById('join-code').value.trim().toUpperCase();
+      const name = document.getElementById('join-name').value.trim();
+      if (!code) { alert('Please enter a session code'); return; }
+      if (!name) { alert('Please enter your name'); return; }
+      window.location.href = `/session?code=${code}&name=${encodeURIComponent(name)}`;
     }
-</script>
+
+    async function logout() {
+      if (_supabase) await _supabase.auth.signOut();
+      window.location.reload();
+    }
+
+    document.getElementById('join-code').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('join-name').focus();
+    });
+    document.getElementById('join-name').addEventListener('keydown', e => {
+      if (e.key === 'Enter') joinSession();
+    });
+    document.getElementById('host-session-name').addEventListener('keydown', e => {
+      if (e.key === 'Enter') createSession();
+    });
+  </script>
 </body>
 </html>
