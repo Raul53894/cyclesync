@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SYNCD — Component Library</title>
+  <link rel="stylesheet" href="/static/components.css"/>
+  <style>
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 48px;
+      padding-bottom: 20px;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .page-title { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
+    .page-sub   { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">Component Library</div>
+      <div class="page-sub">SYNCD design system — buttons, inputs, badges, timers, cards, modals</div>
+    </div>
+    <a href="/" style="text-decoration:none;">
+      <button class="btn btn-secondary btn-sm">← Back to app</button>
+    </a>
+  </div>
+
+<!-- ─────────────────────────────────────────
+     BUTTONS
+───────────────────────────────────────── -->
+<div class="section">
+  <div class="section-label">Buttons</div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;">
+    <button class="btn btn-primary">Host a session</button>
+    <button class="btn btn-secondary">Join with code</button>
+    <button class="btn btn-ghost">Cancel</button>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;">
+    <button class="btn btn-danger">End session</button>
+    <button class="btn btn-warning">Pause</button>
+    <button class="btn btn-purple">Cool-down</button>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;">
+    <button class="btn btn-primary btn-sm">Start</button>
+    <button class="btn btn-secondary btn-sm">Save workout</button>
+    <button class="btn btn-ghost btn-sm">Discard</button>
+    <button class="btn btn-primary btn-lg">Get started</button>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+    <button class="btn btn-primary btn-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 3v10M3 8h10" stroke="#0a0a0f" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button class="btn btn-secondary btn-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M5 8h6M3 5h10M3 11h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button class="btn btn-danger btn-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button class="btn btn-secondary" disabled>Disabled</button>
+  </div>
+</div>
+
+
+<!-- ─────────────────────────────────────────
+     INPUT FIELDS
+───────────────────────────────────────── -->
+<div class="section">
+  <div class="section-label">Input fields</div>
+
+  <div class="input-row" style="margin-bottom:16px;">
+    <div class="input-group">
+      <label class="input-label">Your name</label>
+      <input class="inp" type="text" placeholder="e.g. Alex Johnson"/>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Session name</label>
+      <input class="inp inp-success" type="text" value="Thursday intervals"/>
+    </div>
+  </div>
+
+  <div class="input-row" style="margin-bottom:16px;">
+    <div class="input-group">
+      <label class="input-label">Email address</label>
+      <input class="inp inp-error" type="text" value="not-an-email"/>
+      <span class="error-msg">Enter a valid email address</span>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Effort target (%)</label>
+      <div class="inp-icon-wrap">
+        <svg class="inp-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 9h2l2-5 3 10 2-5 2 0" stroke="rgba(255,255,255,0.25)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <input class="inp" type="number" placeholder="85" min="1" max="100"/>
+      </div>
+      <span class="input-hint">Percentage of max heart rate</span>
+    </div>
+  </div>
+
+  <div class="input-row" style="margin-bottom:16px;">
+    <div class="input-group">
+      <label class="input-label">Workout type</label>
+      <select class="inp">
+        <option>Threshold</option>
+        <option>VO2 max</option>
+        <option>Recovery</option>
+        <option>Sprint</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Session code</label>
+      <input class="inp inp-code" type="text" placeholder="ABC123" maxlength="6"/>
+    </div>
+  </div>
+
+  <div class="input-group">
+    <label class="input-label">Notes</label>
+    <textarea class="inp" placeholder="Add session notes for friends…"></textarea>
+  </div>
+</div>
+
+
+<!-- ─────────────────────────────────────────
+     BADGES & EFFORT LEVELS
+───────────────────────────────────────── -->
+<div class="section">
+  <div class="section-label">Badges & effort levels</div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+    <span class="badge b-green"><span class="badge-dot"></span>Active</span>
+    <span class="badge b-amber"><span class="badge-dot"></span>Rest</span>
+    <span class="badge b-red"><span class="badge-dot"></span>Max effort</span>
+    <span class="badge b-purple"><span class="badge-dot"></span>Recovery</span>
+    <span class="badge b-orange"><span class="badge-dot"></span>Build</span>
+    <span class="badge b-neutral">Waiting</span>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+    <span class="badge b-blue"><span class="badge-dot"></span>Zone 1 · Easy spin</span>
+    <span class="badge b-green"><span class="badge-dot"></span>Zone 2 · Endurance</span>
+    <span class="badge b-amber"><span class="badge-dot"></span>Zone 3 · Tempo</span>
+    <span class="badge b-orange"><span class="badge-dot"></span>Zone 4 · Threshold</span>
+    <span class="badge b-red"><span class="badge-dot"></span>Zone 5 · VO2 max</span>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;">
+    <span class="badge b-green"><span class="badge-dot"></span>Warm-up</span>
+    <span class="badge b-blue"><span class="badge-dot"></span>Cadence focus</span>
+    <span class="badge b-purple"><span class="badge-dot"></span>Cool-down</span>
+    <span class="badge b-amber"><span class="badge-dot"></span>Steady state</span>
+    <span class="badge b-orange"><span class="badge-dot"></span>Sprint</span>
+    <span class="badge b-red"><span class="badge-dot"></span>All-out</span>
+    <span class="badge b-neutral">Active recovery</span>
+  </div>
+</div>
+
+
+<!-- ─────────────────────────────────────────
+     CIRCULAR TIMERS
+───────────────────────────────────────── -->
+<div class="section">
+  <div class="section-label">Countdown timer</div>
+  <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-end;">
+
+    <div class="timer-container">
+      <div class="c-timer" style="width:160px;height:160px;">
+        <svg width="160" height="160" viewBox="0 0 160 160">
+          <circle cx="80" cy="80" r="68" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+          <circle cx="80" cy="80" r="68" fill="none" stroke="#62D136" stroke-width="8"
+            stroke-linecap="round" stroke-dasharray="427" stroke-dashoffset="107"/>
+        </svg>
+        <div class="timer-inner">
+          <div class="timer-time">3:45</div>
+          <div class="timer-seg">Seg 3 / 8</div>
+        </div>
+      </div>
+      <div class="timer-label-text">Threshold · 85%</div>
+      <span class="badge b-orange" style="font-size:11px;"><span class="badge-dot"></span>Zone 4 · Threshold</span>
+    </div>
+
+    <div class="timer-container">
+      <div class="c-timer" style="width:120px;height:120px;">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#F59E0B" stroke-width="7"
+            stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="220"/>
+        </svg>
+        <div class="timer-inner">
+          <div class="timer-time timer-time-sm">0:30</div>
+          <div class="timer-seg timer-seg-sm">Seg 4 / 8</div>
+        </div>
+      </div>
+      <div class="timer-label-text">Rest interval</div>
+      <span class="badge b-amber" style="font-size:11px;"><span class="badge-dot"></span>Rest</span>
+    </div>
+
+    <div class="timer-container">
+      <div class="c-timer" style="width:120px;height:120px;">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#EF4444" stroke-width="7"
+            stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="32"/>
+        </svg>
+        <div class="timer-inner">
+          <div class="timer-time timer-time-sm">0:08</div>
+          <div class="timer-seg timer-seg-sm">Seg 7 / 8</div>
+        </div>
+      </div>
+      <div class="timer-label-text">All-out sprint</div>
+      <span class="badge b-red" style="font-size:11px;"><span class="badge-dot"></span>Zone 5 · VO2 max</span>
+    </div>
+
+    <div class="timer-container">
+      <div class="c-timer" style="width:120px;height:120px;">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#A78BFA" stroke-width="7"
+            stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="157"/>
+        </svg>
+        <div class="timer-inner">
+          <div class="timer-time timer-time-sm">2:00</div>
+          <div class="timer-seg timer-seg-sm">Seg 8 / 8</div>
+        </div>
+      </div>
+      <div class="timer-label-text">Cool-down</div>
+      <span class="badge b-purple" style="font-size:11px;"><span class="badge-dot"></span>Cool-down</span>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ─────────────────────────────────────────
+     CARDS
+───────────────────────────────────────── -->
+<div class="section">
+  <div class="section-label">Cards</div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="stat-icon si-green">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="5.5" stroke="#62D136" stroke-width="1.3"/>
+          <path d="M8 5v3.2l2 2" stroke="#62D136" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="card-metric-label">Duration</div>
+      <div class="card-metric">42 min</div>
+      <div class="card-sub">8 segments · 2 blocks</div>
+    </div>
+
+    <div class="card card-accent-green">
+      <div class="stat-icon si-amber">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 9h2.5l2-6 3 11 2-5H14" stroke="#F59E0B" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="card-metric-label">Peak effort</div>
+      <div class="card-metric text-green">92%</div>
+      <div class="card-sub">Segment 4 · sprint block</div>
+    </div>
+
+    <div class="card">
+      <div class="stat-icon si-purple">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="5.5" cy="6" r="2.2" stroke="#A78BFA" stroke-width="1.3"/>
+          <circle cx="10.5" cy="6" r="2.2" stroke="#A78BFA" stroke-width="1.3"/>
+          <path d="M1 14c0-2 1.8-3.5 4.5-3.5m5 0c2.7 0 4.5 1.5 4.5 3.5" stroke="#A78BFA" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="card-metric-label">Friends</div>
+      <div class="card-metric">6</div>
+      <div class="card-sub">5 completed · 1 dropped</div>
+    </div>
+  </div>
+
+  <div class="session-card" onclick="openSessionModal()" style="margin-bottom:14px;">
+    <div class="session-card-header">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px;letter-spacing:-0.2px;">Thursday intervals</div>
+        <div style="font-size:12px;color:var(--text-muted);">
+          Code: <span class="mono" style="color:var(--green-soft);">XK7F2Q</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="badge b-green"><span class="badge-dot"></span>Live</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="color:var(--text-faint);">
+          <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="session-card-body">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:4px;">
+        <span>Segment 3 of 8</span><span>3:45 remaining</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:62%;background:var(--green);"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+        <button class="btn btn-warning btn-sm">Pause</button>
+        <button class="btn btn-danger btn-sm">End</button>
+        <span class="badge b-orange" style="margin-left:auto;font-size:11px;">
+          <span class="badge-dot"></span>Zone 4 · Threshold
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card card-flat" style="cursor:pointer;" onclick="openSessionModal()">
+      <div class="card-title">Threshold run</div>
+      <div class="card-sub" style="margin-bottom:10px;">6 segments · 38 min</div>
+      <div class="card-row">
+        <span class="badge b-orange" style="font-size:11px;"><span class="badge-dot"></span>Zone 4</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="color:var(--text-faint);">
+          <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card card-flat card-accent-purple" style="cursor:pointer;" onclick="openSessionModal()">
+      <div class="card-title">Sprint pyramids</div>
+      <div class="card-sub" style="margin-bottom:10px;">10 segments · 25 min</div>
+      <div class="card-row">
+        <span class="badge b-red" style="font-size:11px;"><span class="badge-dot"></span>Zone 5</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="color:var(--text-faint);">
+          <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card card-flat card-accent-red" style="cursor:pointer;" onclick="openSessionModal()">
+      <div class="card-title">VO2 max blocks</div>
+      <div class="card-sub" style="margin-bottom:10px;">8 segments · 45 min</div>
+      <div class="card-row">
+        <span class="badge b-red" style="font-size:11px;"><span class="badge-dot"></span>Zone 5</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="color:var(--text-faint);">
+          <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─────────────────────────────────────────
+     MODALS (static display)
+───────────────────────────────────────── -->
+<div class="section">
+  <div class="section-label">Modals</div>
+
+  <div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-icon-wrap mi-green">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M9 3v12M3 9h12" stroke="#62D136" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="modal-title">Create a new session</div>
+        <div class="modal-sub">Give your session a name so friends know what they're joining.</div>
+      </div>
+      <div class="modal-body">
+        <div class="input-group" style="margin-bottom:12px;">
+          <label class="input-label">Session name</label>
+          <input class="inp" type="text" placeholder="e.g. Thursday intervals"/>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Your name</label>
+          <input class="inp" type="text" placeholder="Coach name"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm">Cancel</button>
+        <button class="btn btn-primary btn-sm">Create session</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-icon-wrap mi-red">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M9 7v4M9 13.5v.5" stroke="#EF4444" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M3 15L9 4l6 11H3z" stroke="#EF4444" stroke-width="1.3" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="modal-title">End session early?</div>
+        <div class="modal-sub">This will stop the workout for all 6 friends. Session data will still be saved.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm">Keep going</button>
+        <button class="btn btn-danger btn-sm">End session</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-icon-wrap mi-amber">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <circle cx="9" cy="9" r="6.5" stroke="#F59E0B" stroke-width="1.3"/>
+            <path d="M9 6v4" stroke="#F59E0B" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="9" cy="13" r="0.7" fill="#F59E0B"/>
+          </svg>
+        </div>
+        <div class="modal-title">Segment complete</div>
+        <div class="modal-sub">Segment 1 of 3 done. Friends are resting — continue when ready.</div>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--surface2);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">Next up</div>
+          <div style="font-size:14px;color:var(--text);font-weight:600;letter-spacing:-0.2px;margin-bottom:4px;">VO2 intervals × 4 reps</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:12px;color:var(--green-soft);">90% effort · 3 min each</span>
+            <span class="badge b-red" style="font-size:10px;margin-left:auto;">
+              <span class="badge-dot"></span>Zone 5 · VO2 max
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm">End session</button>
+        <button class="btn btn-primary btn-sm">Start next segment</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─────────────────────────────────────────
+     SESSION DETAIL MODAL (interactive)
+───────────────────────────────────────── -->
+<div class="modal-overlay" id="session-detail-modal" onclick="if(event.target===this)closeSessionModal()">
+  <div style="background:var(--surface);border:0.5px solid var(--border-mid);border-radius:20px;width:100%;max-width:460px;overflow:hidden;max-height:90vh;overflow-y:auto;">
+
+    <div style="padding:22px 24px 18px;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div style="font-size:18px;font-weight:600;color:var(--text);letter-spacing:-0.5px;margin-bottom:4px;">Thursday intervals</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.5;max-width:320px;">
+          A structured threshold session built around sustained high-cadence efforts with short recovery windows.
+        </div>
+      </div>
+      <button onclick="closeSessionModal()" style="background:rgba(255,255,255,0.06);border:0.5px solid var(--border-mid);border-radius:8px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:12px;">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 3l8 8M11 3l-8 8" stroke="rgba(255,255,255,0.5)" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div style="padding:20px 24px;">
+      <div class="sdm-meta">
+        <div class="sdm-stat"><div class="sdm-stat-val">42 min</div><div class="sdm-stat-lbl">Duration</div></div>
+        <div class="sdm-stat"><div class="sdm-stat-val">8</div><div class="sdm-stat-lbl">Segments</div></div>
+        <div class="sdm-stat"><div class="sdm-stat-val text-green">85%</div><div class="sdm-stat-lbl">Avg effort</div></div>
+      </div>
+
+      <div class="sdm-section-label">Interval map</div>
+      <div class="block-graph">
+        <div class="bg-bar" style="height:28%;background:rgba(96,165,250,0.7);"></div>
+        <div class="bg-bar" style="height:55%;background:rgba(98,209,54,0.8);"></div>
+        <div class="bg-bar" style="height:30%;background:rgba(255,255,255,0.12);"></div>
+        <div class="bg-bar" style="height:80%;background:rgba(251,146,60,0.85);"></div>
+        <div class="bg-bar" style="height:30%;background:rgba(255,255,255,0.12);"></div>
+        <div class="bg-bar" style="height:90%;background:rgba(239,68,68,0.85);"></div>
+        <div class="bg-bar" style="height:30%;background:rgba(255,255,255,0.12);"></div>
+        <div class="bg-bar" style="height:95%;background:rgba(239,68,68,0.9);"></div>
+        <div class="bg-bar" style="height:30%;background:rgba(255,255,255,0.12);"></div>
+        <div class="bg-bar" style="height:88%;background:rgba(251,146,60,0.85);"></div>
+        <div class="bg-bar" style="height:30%;background:rgba(255,255,255,0.12);"></div>
+        <div class="bg-bar" style="height:40%;background:rgba(167,139,250,0.7);"></div>
+      </div>
+      <div class="block-graph-labels">
+        <div class="bgl">Warm-up</div><div class="bgl">Endurance</div><div class="bgl">Rest</div>
+        <div class="bgl">Threshold</div><div class="bgl">Rest</div><div class="bgl">Sprint</div>
+        <div class="bgl">Rest</div><div class="bgl">Sprint</div><div class="bgl">Rest</div>
+        <div class="bgl">Threshold</div><div class="bgl">Rest</div><div class="bgl">Cool-down</div>
+      </div>
+
+      <div class="sdm-section-label" style="margin-top:4px;">Effort zones</div>
+      <div class="zone-legend">
+        <div class="zone-row">
+          <span class="zone-name" style="color:rgba(96,165,250,0.9);">Z1 · Easy spin</span>
+          <div class="zone-bar-wrap"><div class="zone-bar-fill" style="width:8%;background:#60A5FA;"></div></div>
+          <span class="zone-pct">8%</span>
+        </div>
+        <div class="zone-row">
+          <span class="zone-name" style="color:rgba(98,209,54,0.9);">Z2 · Endurance</span>
+          <div class="zone-bar-wrap"><div class="zone-bar-fill" style="width:15%;background:#62D136;"></div></div>
+          <span class="zone-pct">15%</span>
+        </div>
+        <div class="zone-row">
+          <span class="zone-name" style="color:rgba(245,158,11,0.9);">Z3 · Tempo</span>
+          <div class="zone-bar-wrap"><div class="zone-bar-fill" style="width:12%;background:#F59E0B;"></div></div>
+          <span class="zone-pct">12%</span>
+        </div>
+        <div class="zone-row">
+          <span class="zone-name" style="color:rgba(251,146,60,0.9);">Z4 · Threshold</span>
+          <div class="zone-bar-wrap"><div class="zone-bar-fill" style="width:38%;background:#FB923C;"></div></div>
+          <span class="zone-pct">38%</span>
+        </div>
+        <div class="zone-row">
+          <span class="zone-name" style="color:rgba(239,68,68,0.9);">Z5 · VO2 max</span>
+          <div class="zone-bar-wrap"><div class="zone-bar-fill" style="width:27%;background:#EF4444;"></div></div>
+          <span class="zone-pct">27%</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:16px 24px;border-top:0.5px solid var(--border);display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="closeSessionModal()" class="btn btn-ghost btn-sm">Close</button>
+      <button class="btn btn-primary btn-sm">Load session</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openSessionModal()  { document.getElementById('session-detail-modal').classList.add('open'); }
+  function closeSessionModal() { document.getElementById('session-detail-modal').classList.remove('open'); }
+</script>
+
+</body>
+</html>

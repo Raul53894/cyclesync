@@ -58,6 +58,10 @@ async def auth_page():
 async def account_page():
     return FileResponse("static/account.html")
 
+@app.get("/components")
+async def components_page():
+    return FileResponse("static/components.html")
+
 # ── Auth helper ───────────────────────────────────────────────────────────────
 
 async def require_user(request: Request):

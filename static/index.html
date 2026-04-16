@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CycleSync</title>
-    <link rel="stylesheet" href="/static/style.css?v=4">
+    <title>SYNCD</title>
+    <link rel="stylesheet" href="/static/style.css?v=5">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="card">
     <div class="toolbar">
-        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">💡</button>
+        <a href="/components" style="text-decoration:none; margin-right:auto;">
+            <button class="secondary" style="padding:6px 14px; font-size:0.8rem; min-height:unset;">Components</button>
+        </a>
         <a href="/account" id="account-btn" style="display:none;">
             <button class="secondary" style="padding:6px 14px; font-size:0.8rem; min-height:unset;">My Account</button>
         </a>
         <button class="secondary" id="logout-btn" onclick="logout()" style="display:none; padding:6px 14px; font-size:0.8rem; min-height:unset;">Log out</button>
     </div>
-    <h1>CycleSync</h1>
+    <h1>SYNCD</h1>
     <h2 style="color:var(--muted);">Synchronized cycling workouts with friends</h2>
 
     <div id="join-section">
@@ -36,13 +38,6 @@
 </div>
 
 <script>
-    // Apply saved theme on load
-    const savedTheme = localStorage.getItem('cyclesync-theme') || 'dark';
-    if (savedTheme === 'light') {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.getElementById('theme-btn').textContent = '💡';
-    }
-
     let _supabase = null;
     let _session = null;
 
@@ -70,14 +65,6 @@
     }
 
     initAuth();
-
-    function toggleTheme() {
-        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-        const next = isLight ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', next === 'dark' ? '' : 'light');
-        document.getElementById('theme-btn').textContent = '💡';
-        localStorage.setItem('cyclesync-theme', next);
-    }
 
     async function showHost() {
         // Ensure auth is ready before proceeding

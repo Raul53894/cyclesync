@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CycleSync — Host</title>
-    <link rel="stylesheet" href="/static/style.css?v=4">
+    <title>SYNCD — Create Session</title>
+    <link rel="stylesheet" href="/static/style.css?v=5">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -18,9 +18,8 @@
     </div>
 </div>
 <div class="card card--wide">
-    <div class="toolbar">
+    <div class="toolbar" style="justify-content:flex-start;">
         <button class="icon-btn" onclick="cancelSession()" title="Back to home">←</button>
-        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">💡</button>
     </div>
     <h1>Create Session</h1>
     <div id="session-name-display" class="session-name hidden"></div>
@@ -64,13 +63,6 @@
     let ws;
     let selectedPreset = null;
 
-    // Apply saved theme
-    const savedTheme = localStorage.getItem('cyclesync-theme') || 'dark';
-    if (savedTheme === 'light') {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.getElementById('theme-btn').textContent = '💡';
-    }
-
     // Auth guard — redirect to /auth if not logged in
     async function checkAuth() {
         try {
@@ -100,14 +92,6 @@
     }
 
     function cancelSession() { window.location.href = '/'; }
-
-    function toggleTheme() {
-        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-        const next = isLight ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', next === 'dark' ? '' : 'light');
-        document.getElementById('theme-btn').textContent = '💡';
-        localStorage.setItem('cyclesync-theme', next);
-    }
 
     document.getElementById('session-code').textContent = code;
 
@@ -149,7 +133,7 @@
         block.innerHTML = `
             <div class="block-header">
                 <span class="block-title">Block ${idx + 1}</span>
-                <button class="secondary remove btn-compact" onclick="removeBlock(this)">Remove</button>
+                <button class="secondary remove btn-compact" onclick="removeBlock(this)">Delete</button>
             </div>
             <div class="interval-labels">
                 <span style="flex:2">Interval name</span>
@@ -160,7 +144,7 @@
             </div>
             <div class="block-intervals"></div>
             <div class="block-footer">
-                <button class="secondary" style="flex:1;min-height:40px;font-size:0.8rem;margin-top:0;"
+                <button class="btn-ghost-green" style="flex:1;min-height:48px;margin-top:0;"
                         onclick="addIntervalToBlock(this)">+ Add Interval</button>
                 <label>Reps <input type="number" class="block-reps" min="1" value="1"
                                    style="width:56px;margin-bottom:0;text-align:center;"></label>
@@ -248,8 +232,7 @@
             block.innerHTML = `
                 <div class="block-header">
                     <span class="block-title">Block ${idx + 1}</span>
-                    <button class="secondary remove" style="width:auto;padding:6px 12px;min-height:unset;font-size:0.75rem;"
-                            onclick="removeBlock(this)">Remove</button>
+                    <button class="secondary remove btn-compact" onclick="removeBlock(this)">Delete</button>
                 </div>
                 <div class="interval-labels">
                     <span style="flex:2">Interval name</span>
@@ -260,7 +243,7 @@
                 </div>
                 <div class="block-intervals"></div>
                 <div class="block-footer">
-                    <button class="secondary" style="flex:1;min-height:40px;font-size:0.8rem;margin-top:0;"
+                    <button class="btn-ghost-green" style="flex:1;min-height:48px;margin-top:0;"
                             onclick="addIntervalToBlock(this)">+ Add Interval</button>
                     <label>Reps <input type="number" class="block-reps" min="1" value="${blockData.reps || 1}"
                                        style="width:56px;margin-bottom:0;text-align:center;"></label>
@@ -571,8 +554,8 @@
         let url = `${location.origin}/session?code=${code}&name=`;
         if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
         const shareData = {
-            title: 'CycleSync — Join my workout',
-            text: `Join my CycleSync session! Use code ${code} or tap the link and enter your name.`,
+            title: 'SYNCD — Join my workout',
+            text: `Join my SYNCD session! Use code ${code} or tap the link and enter your name.`,
             url: url
         };
         if (navigator.share) {

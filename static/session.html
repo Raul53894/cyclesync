@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CycleSync — Session</title>
-    <link rel="stylesheet" href="/static/style.css?v=4">
+    <title>SYNCD — Live Session</title>
+    <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
 
@@ -22,9 +22,8 @@
 </div>
 
 <div class="card">
-    <div class="toolbar">
+    <div class="toolbar" style="justify-content:flex-end;">
         <button class="icon-btn" onclick="openSessionInfo()" title="Session info">ℹ</button>
-        <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode">💡</button>
     </div>
     <h1>Live Session</h1>
     <div id="session-name-display" class="session-name hidden"></div>
@@ -153,21 +152,6 @@
     let presetName = '';
     let currentParticipants = [];
     let audioCtx = null;
-
-    // Apply saved theme
-    const savedTheme = localStorage.getItem('cyclesync-theme') || 'dark';
-    if (savedTheme === 'light') {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.getElementById('theme-btn').textContent = '💡';
-    }
-
-    function toggleTheme() {
-        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-        const next = isLight ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', next === 'dark' ? '' : 'light');
-        document.getElementById('theme-btn').textContent = '💡';
-        localStorage.setItem('cyclesync-theme', next);
-    }
 
     document.getElementById('lobby-code').textContent = code;
 

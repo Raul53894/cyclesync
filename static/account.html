@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CycleSync — My Account</title>
-  <link rel="stylesheet" href="/static/style.css?v=3" />
+  <title>SYNCD — My Account</title>
+  <link rel="stylesheet" href="/static/style.css?v=5" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     /* ── Layout ── */
@@ -156,11 +156,6 @@
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <div></div>
-    <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">💡</button>
-  </div>
-
   <div class="page">
     <div class="acct-header">
       <button class="back-btn" onclick="window.location.href='/'">← Home</button>
@@ -168,6 +163,9 @@
         <h2>My Account</h2>
         <div class="user-label" id="user-label"></div>
       </div>
+      <a href="/components" style="text-decoration:none;">
+        <button class="back-btn">Components</button>
+      </a>
     </div>
 
     <div class="tabs">
@@ -255,15 +253,6 @@
     let _token = null;
     let _user = null;
     let _activeWorkoutId = null;
-
-    // ── Theme ────────────────────────────────────────────────────────────────
-    const _theme = localStorage.getItem('cyclesync-theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', _theme);
-    function toggleTheme() {
-      const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-      localStorage.setItem('cyclesync-theme', t);
-    }
 
     // ── Init ─────────────────────────────────────────────────────────────────
     async function init() {
