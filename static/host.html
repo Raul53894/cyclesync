@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SYNCD — Create Session</title>
-  <link rel="stylesheet" href="/static/components.css" />
+  <title>SYNCD — Host</title>
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<!-- Preset detail modal -->
+<!-- Preset detail overlay -->
 <div id="preset-tooltip-overlay" onclick="closePresetTooltip()">
   <div id="preset-tooltip" onclick="event.stopPropagation()">
     <div class="preset-modal-header">
@@ -21,49 +20,155 @@
   </div>
 </div>
 
-<div class="card card--wide">
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <button class="icon-btn" onclick="cancelSession()" title="Back to home">←</button>
-    <div></div>
+<!-- End session sheet -->
+<div class="sheet-overlay" id="end-sheet" onclick="if(event.target===this)closeSheet('end-sheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-icon si-red">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 8v5M10 15.5v.5" stroke="#EF4444" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M3 17L10 4l7 13H3z" stroke="#EF4444" stroke-width="1.4" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="sheet-title">End session early?</div>
+    <div class="sheet-sub" id="end-sheet-sub">This will stop the workout for all riders. Session data will still be saved.</div>
+    <div class="sheet-actions">
+      <button class="btn btn-danger" onclick="endWorkout()">End session</button>
+      <button class="btn btn-ghost" onclick="closeSheet('end-sheet')">Keep going</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- Topbar: builder state -->
+  <div class="topbar" id="topbar-builder">
+    <button class="btn btn-ghost btn-sm" onclick="cancelSession()">← Back</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="badge b-neutral" id="code-badge-topbar"></span>
+      <button class="btn btn-secondary btn-sm" onclick="shareSession()">Share</button>
+    </div>
   </div>
 
-  <h1>Create Session</h1>
-  <div id="session-name-display" class="session-name hidden"></div>
-
-  <p style="color:var(--text-muted); font-size:13px; margin-bottom:4px;">Share this code with your friends</p>
-  <div class="code-display" id="session-code"></div>
-  <button class="btn btn-secondary btn-sm" onclick="shareSession()" style="margin-bottom:4px;">Share Link</button>
-  <p class="status">Waiting for riders to join...</p>
-
-  <div class="participant-list">
-    <ul id="participant-list"></ul>
+  <!-- Topbar: live state (hidden until workout starts) -->
+  <div class="topbar" id="topbar-live" style="display:none;">
+    <span class="brand">SYNCD<span class="brand-dot">.</span></span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="badge b-green"><span class="badge-dot pulse"></span><span id="live-count-badge">Live</span></span>
+      <button class="btn btn-danger btn-sm" onclick="openSheet('end-sheet')">End</button>
+    </div>
   </div>
 
-  <hr />
-  <h2 style="margin-bottom:16px;">Build Your Workout</h2>
+  <div class="scroll">
 
-  <div id="preset-grid" class="preset-grid"></div>
+    <!-- ── BUILDER SECTION ───────────────────── -->
+    <div id="section-builder" style="padding:16px 20px 48px;">
 
-  <div id="blocks-container"></div>
+      <div style="margin-bottom:16px;">
+        <p style="font-size:12px;color:var(--text-faint);margin-bottom:4px;">Session code</p>
+        <p style="font-size:26px;font-weight:700;letter-spacing:6px;color:var(--green);margin-bottom:2px;" id="session-code-display"></p>
+        <div id="session-name-display" style="display:none;font-size:11px;color:var(--text-faint);font-weight:500;text-transform:uppercase;letter-spacing:2px;margin-top:2px;"></div>
+      </div>
 
-  <button class="btn-ghost-green btn-sm" onclick="addBlock()" style="margin-top:8px;">+ Add Block</button>
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:13px;color:var(--text-muted);" id="wait-status">Waiting for riders to join…</span>
+        </div>
+        <ul id="participant-list" style="list-style:none;padding:0;margin:0;"></ul>
+      </div>
 
-  <!-- Save workout (auth only) -->
-  <div id="save-workout-section" style="display:none; margin-top:20px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-    <input class="inp" type="text" id="save-workout-name"
-           placeholder="Workout name (e.g. Tuesday Intervals)"
-           style="flex:1; min-width:180px;" />
-    <button class="btn btn-secondary btn-sm" onclick="saveWorkout()" style="white-space:nowrap;">
-      💾 Save Workout
-    </button>
+      <hr style="margin:16px 0;" />
+
+      <div class="section-label">Presets</div>
+      <div id="preset-grid" class="preset-grid"></div>
+
+      <div class="section-label">Your Workout</div>
+      <div id="blocks-container"></div>
+      <button class="btn-ghost-green btn-sm" onclick="addBlock()" style="margin-top:4px;">+ Add Block</button>
+
+      <!-- Save workout (auth only) -->
+      <div id="save-workout-section" style="display:none;margin-top:20px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input class="inp" type="text" id="save-workout-name"
+                 placeholder="Workout name" style="flex:1;min-width:160px;" />
+          <button class="btn btn-secondary btn-sm" onclick="saveWorkout()">💾 Save</button>
+        </div>
+        <div id="save-workout-msg" style="display:none;color:var(--green);font-size:13px;margin-top:8px;"></div>
+      </div>
+
+      <button id="start-btn" class="btn btn-primary" onclick="startWorkout()"
+              style="width:100%;margin-top:24px;display:none;">
+        Start Workout for Everyone
+      </button>
+    </div>
+
+    <!-- ── LIVE SECTION ──────────────────────── -->
+    <div id="section-live" style="display:none;padding-bottom:40px;">
+
+      <!-- Session header -->
+      <div class="session-header">
+        <div>
+          <div class="session-title" id="live-session-title">Session</div>
+          <div class="session-sub" id="live-session-sub">Running</div>
+        </div>
+        <div class="code-block">
+          <div class="code-lbl">Code</div>
+          <div class="code-val" id="live-code"></div>
+        </div>
+      </div>
+
+      <!-- Meta strip -->
+      <div class="meta-strip">
+        <div class="meta-card"><div class="meta-lbl">Elapsed</div><div class="meta-val" id="meta-elapsed">0:00</div></div>
+        <div class="meta-card"><div class="meta-lbl">Remaining</div><div class="meta-val amber" id="meta-remaining">—</div></div>
+        <div class="meta-card"><div class="meta-lbl">Segment</div><div class="meta-val" id="meta-segment">—</div></div>
+        <div class="meta-card"><div class="meta-lbl">Riders</div><div class="meta-val green" id="meta-riders">0</div></div>
+      </div>
+
+      <!-- Now playing card -->
+      <div class="now-card">
+        <div class="now-head">
+          <span class="now-head-lbl">Now playing</span>
+          <span class="badge b-orange" id="zone-badge">Zone —</span>
+        </div>
+        <div class="now-body">
+          <div class="now-row">
+            <!-- Mini timer 80×80 -->
+            <div class="timer-wrap" style="width:80px;height:80px;">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="33" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+                <circle id="host-arc" cx="40" cy="40" r="33" fill="none" stroke="#FB923C" stroke-width="6"
+                  stroke-linecap="round" stroke-dasharray="207" stroke-dashoffset="0"/>
+              </svg>
+              <div class="timer-inner">
+                <div class="h-time" id="host-timer">—</div>
+                <div class="h-seg" id="host-seg">— / —</div>
+              </div>
+            </div>
+            <div class="now-info" style="flex:1;min-width:0;">
+              <div class="now-name" id="now-name">—</div>
+              <div class="now-effort" id="now-effort">—</div>
+              <div class="prog-track"><div class="prog-fill" id="host-prog" style="width:0%;background:var(--orange);"></div></div>
+            </div>
+          </div>
+          <!-- Controls -->
+          <div class="controls-row">
+            <button class="btn btn-warning btn-sm" id="pause-btn" onclick="togglePause()">⏸ Pause</button>
+            <button class="btn btn-ghost btn-sm" onclick="openSheet('end-sheet')">End</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Segment plan -->
+      <div class="live-section-label">Segment plan</div>
+      <div id="seg-plan" class="seg-plan"></div>
+
+      <!-- Friends -->
+      <div class="live-section-label">Riders</div>
+      <div id="friends-list" class="friends-list"></div>
+
+    </div>
   </div>
-  <div id="save-workout-msg" style="display:none; color:var(--green); font-size:13px; margin-top:8px;"></div>
-
-  <button id="start-btn" class="btn btn-primary" onclick="startWorkout()"
-          style="width:100%; margin-top:24px; display:none;">
-    Start Workout for Everyone
-  </button>
 </div>
 
 <script>
@@ -74,6 +179,21 @@
   const token = params.get('token') || '';
   let ws;
   let selectedPreset = null;
+  let _isPaused = false;
+
+  // Live view state
+  let _allIntervals = [];
+  let _sessionTotal = 0;
+  let _sessionElapsed = 0;
+  let _completedDuration = 0;
+  let _currentDuration = 0;
+  let _currentRemaining = 0;
+  let _currentIndex = 0;
+  let _totalIntervals = 0;
+  let _planSegments = [];
+  let _intervalToSegRow = [];
+  let _participantNames = [];
+  const AV_CLASSES = ['av-g', 'av-p', 'av-o', 'av-b', 'av-a', 'av-r'];
 
   // Auth guard
   async function checkAuth() {
@@ -89,7 +209,7 @@
   checkAuth();
 
   if (token) {
-    document.getElementById('save-workout-section').style.display = 'flex';
+    document.getElementById('save-workout-section').style.display = 'block';
   }
 
   // Load template from sessionStorage if redirected from Account page
@@ -104,14 +224,17 @@
 
   function cancelSession() { window.location.href = '/'; }
 
-  document.getElementById('session-code').textContent = code;
-
+  // Init display
+  document.getElementById('session-code-display').textContent = code;
+  document.getElementById('code-badge-topbar').textContent = code;
+  document.getElementById('live-code').textContent = code;
   if (sessionName) {
     const el = document.getElementById('session-name-display');
     el.textContent = sessionName;
-    el.classList.remove('hidden');
+    el.style.display = 'block';
   }
 
+  // WebSocket
   const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   const wsToken = token ? `?token=${encodeURIComponent(token)}` : '';
   ws = new WebSocket(`${protocol}://${location.host}/ws/${code}/${encodeURIComponent(name)}/host${wsToken}`);
@@ -120,21 +243,179 @@
     const data = JSON.parse(event.data);
 
     if (data.type === 'starting') {
-      let url = `/session?code=${code}&name=${encodeURIComponent(name)}&role=host`;
-      if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
-      if (token) url += `&token=${encodeURIComponent(token)}`;
-      window.location.href = url;
+      switchToLive();
       return;
     }
 
     if (data.type === 'participants') {
+      _participantNames = data.names;
+      // Builder view
       const list = document.getElementById('participant-list');
-      list.innerHTML = data.names.map(n => `<li>&#128692; ${n}</li>`).join('');
+      list.innerHTML = data.names.map(n => `<li style="padding:6px 0;border-bottom:0.5px solid var(--border);font-size:13px;color:var(--text-muted);">🚴 ${n}</li>`).join('');
       if (data.names.length >= 1) {
         document.getElementById('start-btn').style.display = 'block';
+        document.getElementById('wait-status').textContent = `${data.names.length} rider${data.names.length > 1 ? 's' : ''} joined`;
       }
+      // Live view
+      document.getElementById('meta-riders').textContent = data.names.length;
+      document.getElementById('live-count-badge').textContent = `Live · ${data.names.length}`;
+      renderFriendsList(data.names);
+      return;
+    }
+
+    if (data.type === 'interval_start') {
+      const { index, total, label, effort, duration, rep, totalReps } = data;
+      _currentIndex = index;
+      _totalIntervals = total;
+      _currentDuration = duration;
+      _currentRemaining = duration;
+
+      // Update completed duration for elapsed tracking
+      if (index > 0) {
+        _completedDuration = _allIntervals.slice(0, index).reduce((s, iv) => s + iv.duration, 0);
+      } else {
+        _completedDuration = 0;
+        _sessionElapsed = 0;
+      }
+
+      const effortLabel = `${effort}% effort · ${fmtDur(duration)} total`;
+      document.getElementById('now-name').textContent = label;
+      document.getElementById('now-effort').textContent = effortLabel;
+      document.getElementById('host-seg').textContent = `${rep} / ${totalReps}`;
+      document.getElementById('meta-segment').textContent = `${index + 1} / ${total}`;
+
+      const zone = effortToZone(effort);
+      const zoneColors = { 1: 'var(--blue)', 2: 'var(--green)', 3: 'var(--amber)', 4: 'var(--orange)', 5: 'var(--red)' };
+      const zoneBadge = document.getElementById('zone-badge');
+      zoneBadge.textContent = `Zone ${zone}`;
+      const arcEl = document.getElementById('host-arc');
+      arcEl.setAttribute('stroke', zoneColors[zone] || 'var(--orange)');
+      document.getElementById('host-prog').style.background = zoneColors[zone] || 'var(--orange)';
+
+      // Update segment plan
+      const segRow = _intervalToSegRow[index];
+      document.querySelectorAll('#seg-plan .seg-row').forEach((el, i) => {
+        el.classList.remove('active-seg', 'done-seg');
+        if (i < segRow) el.classList.add('done-seg');
+        else if (i === segRow) {
+          el.classList.add('active-seg');
+          el.querySelector('.seg-n').style.color = 'var(--green)';
+          const badge = el.querySelector('.seg-badge');
+          if (badge) badge.innerHTML = `<span class="badge b-green" style="font-size:10px;"><span class="badge-dot"></span>Active</span>`;
+        }
+      });
+      return;
+    }
+
+    if (data.type === 'tick') {
+      const { remaining, duration } = data;
+      _currentRemaining = remaining;
+      _sessionElapsed = _completedDuration + (duration - remaining);
+
+      const pct = remaining / duration;
+      document.getElementById('host-timer').textContent = fmt(remaining);
+      document.getElementById('host-arc').setAttribute('stroke-dashoffset', Math.round(207 * (1 - pct)));
+      document.getElementById('host-prog').style.width = Math.round((1 - pct) * 100) + '%';
+
+      document.getElementById('meta-elapsed').textContent = fmt(_sessionElapsed);
+      const remTotal = Math.max(0, _sessionTotal - _sessionElapsed);
+      document.getElementById('meta-remaining').textContent = fmt(remTotal);
+
+      const el = document.getElementById('live-session-sub');
+      const m = Math.floor(_sessionElapsed / 60);
+      el.textContent = `Running · ${m < 1 ? 'just started' : `${m} min elapsed`}`;
+      return;
+    }
+
+    if (data.type === 'paused') {
+      _isPaused = true;
+      const btn = document.getElementById('pause-btn');
+      btn.textContent = '▶ Resume';
+      btn.className = 'btn btn-primary btn-sm';
+      return;
+    }
+
+    if (data.type === 'resumed') {
+      _isPaused = false;
+      const btn = document.getElementById('pause-btn');
+      btn.textContent = '⏸ Pause';
+      btn.className = 'btn btn-warning btn-sm';
+      return;
+    }
+
+    if (data.type === 'workout_complete') {
+      window.location.href = '/';
+      return;
     }
   };
+
+  function switchToLive() {
+    document.getElementById('topbar-builder').style.display = 'none';
+    document.getElementById('topbar-live').style.display = '';
+    document.getElementById('section-builder').style.display = 'none';
+    document.getElementById('section-live').style.display = '';
+    document.getElementById('live-session-title').textContent = sessionName || 'SYNCD Session';
+    renderFriendsList(_participantNames);
+  }
+
+  function togglePause() {
+    if (_isPaused) {
+      ws.send(JSON.stringify({ type: 'resume' }));
+    } else {
+      ws.send(JSON.stringify({ type: 'pause' }));
+    }
+  }
+
+  function endWorkout() {
+    closeSheet('end-sheet');
+    ws.send(JSON.stringify({ type: 'end' }));
+  }
+
+  function openSheet(id)  { document.getElementById(id).classList.add('open'); }
+  function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+
+  function renderFriendsList(names) {
+    const el = document.getElementById('friends-list');
+    if (!names.length) { el.innerHTML = ''; return; }
+    el.innerHTML = names.map((n, i) => {
+      const av = AV_CLASSES[i % AV_CLASSES.length];
+      const initials = n.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+      return `<div class="f-row">
+        <div class="f-av ${av}" style="width:30px;height:30px;">${initials}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="f-name">${n}</div>
+          <div class="f-status">Connected</div>
+        </div>
+        <span class="badge b-green" style="font-size:10px;"><span class="badge-dot pulse"></span></span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderSegmentPlan(intervals) {
+    _planSegments = [];
+    _intervalToSegRow = [];
+    intervals.forEach((iv, i) => {
+      const prev = i > 0 ? intervals[i - 1] : null;
+      const isNew = !prev || prev.block !== iv.block || prev.label !== iv.label;
+      if (isNew) {
+        _planSegments.push({ label: iv.label, effort: iv.effort, duration: iv.duration, totalReps: iv.totalReps, block: iv.block });
+      }
+      _intervalToSegRow.push(_planSegments.length - 1);
+    });
+
+    const el = document.getElementById('seg-plan');
+    el.innerHTML = _planSegments.map((seg, i) => {
+      const durLabel = seg.totalReps > 1
+        ? `${fmtDur(seg.duration)} ×${seg.totalReps}`
+        : fmtDur(seg.duration);
+      return `<div class="seg-row">
+        <div class="seg-n">${i + 1}</div>
+        <div class="seg-nm">${seg.label}</div>
+        <div class="seg-dt">${durLabel}</div>
+        <span class="seg-badge" style="margin-left:auto;"></span>
+      </div>`;
+    }).join('');
+  }
 
   // ── Block builder ──────────────────────────────────────────────────────
   function addBlock() {
@@ -308,8 +589,29 @@
 
   function startWorkout() {
     const intervals = buildIntervals();
+    _allIntervals = intervals;
+    _sessionTotal = intervals.reduce((s, iv) => s + iv.duration, 0);
+    renderSegmentPlan(intervals);
     ws.send(JSON.stringify({ type: 'set_workout', intervals, presetName: selectedPreset ? selectedPreset.name : '' }));
     ws.send(JSON.stringify({ type: 'start_workout' }));
+  }
+
+  // ── Utility ────────────────────────────────────────────────────────────
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function fmt(s) { return Math.floor(s / 60) + ':' + pad(s % 60); }
+  function fmtDur(s) {
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return sec > 0 ? `${m}m ${sec}s` : `${m}m`;
+  }
+
+  function effortToZone(e) {
+    if (e <= 55) return 1;
+    if (e <= 75) return 2;
+    if (e <= 87) return 3;
+    if (e <= 95) return 4;
+    return 5;
   }
 
   // ── Presets ────────────────────────────────────────────────────────────
@@ -458,14 +760,6 @@
     document.getElementById('preset-tooltip-overlay').classList.remove('visible');
   }
 
-  function effortToZone(e) {
-    if (e <= 55) return 1;
-    if (e <= 75) return 2;
-    if (e <= 87) return 3;
-    if (e <= 95) return 4;
-    return 5;
-  }
-
   const ZONE_LABELS = {
     1: { name: 'Z1 Recovery',   color: '#4a9eff' },
     2: { name: 'Z2 Endurance',  color: '#22ff66' },
@@ -564,8 +858,7 @@
   renderPresets();
 
   function shareSession() {
-    let url = `${location.origin}/session?code=${code}&name=`;
-    if (sessionName) url += `&session=${encodeURIComponent(sessionName)}`;
+    const url = `${location.origin}/session?code=${code}&name=`;
     const shareData = {
       title: 'SYNCD — Join my workout',
       text: `Join my SYNCD session! Use code ${code} or tap the link and enter your name.`,

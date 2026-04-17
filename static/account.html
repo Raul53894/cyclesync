@@ -4,422 +4,386 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SYNCD — My Account</title>
-  <link rel="stylesheet" href="/static/components.css" />
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    /* Account-page-specific styles */
-    .effort-bars { display: flex; height: 40px; border-radius: var(--r-md); overflow: hidden; gap: 1px; margin-bottom: 6px; }
-    .effort-bar  { height: 100%; flex-shrink: 0; transition: opacity 0.2s; cursor: default; }
-    .effort-bar:hover { opacity: 0.75; }
-
-    .interval-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-    .interval-table th { text-align: left; color: var(--text-faint); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; padding: 0 8px 8px 0; border-bottom: 0.5px solid var(--border); }
-    .interval-table td { padding: 8px 8px 8px 0; border-bottom: 0.5px solid rgba(255,255,255,0.04); color: var(--text-muted); }
-    .interval-table tr:last-child td { border-bottom: none; }
-
-    .effort-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-
-    .block-section { margin-bottom: 20px; }
-    .block-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-faint); margin-bottom: 6px; }
-
-    .p-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-    .p-chip { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: var(--green-bg); border: 0.5px solid var(--green-br); color: var(--green-soft); }
-
-    .settings-max { max-width: 400px; }
-    .settings-feedback { font-size: 13px; margin-top: 8px; min-height: 18px; display: none; }
-    .settings-feedback.ok  { color: var(--green); display: block; }
-    .settings-feedback.err { color: var(--red);   display: block; }
-
-    .modal-session-label {
-      font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 1.5px; color: var(--text-faint); margin: 16px 0 8px;
-    }
-  </style>
 </head>
-<body style="align-items:flex-start; padding:0; justify-content:flex-start;">
+<body>
 
-  <div class="acct-page">
+<!-- Session Detail Sheet -->
+<div class="sheet-overlay" id="session-sheet" onclick="closeSheet('session-sheet')">
+  <div class="sheet" onclick="event.stopPropagation()" style="max-height:85vh;overflow-y:auto;">
+    <div class="sheet-handle"></div>
+    <div style="padding:0 20px 8px;">
+      <div class="sheet-title" id="ss-title">Session</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;" id="ss-meta"></div>
 
-    <!-- Header -->
-    <div class="acct-header">
-      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/'">← Home</button>
-      <div class="acct-header-center">
-        <h2>My Account</h2>
-        <div class="user-label" id="user-label"></div>
+      <div id="ss-riders-wrap" style="margin-bottom:16px;">
+        <div class="section-label" style="margin-bottom:8px;">Riders</div>
+        <div id="ss-riders" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
       </div>
-      <a href="/components" style="text-decoration:none;">
-        <button class="btn btn-ghost btn-sm">Components</button>
-      </a>
-    </div>
 
-    <!-- Tabs -->
-    <div class="acct-tabs">
-      <button class="acct-tab active" id="tab-history" onclick="showTab('history')">History</button>
-      <button class="acct-tab" id="tab-saved" onclick="showTab('saved')">Saved Workouts</button>
-      <button class="acct-tab" id="tab-settings" onclick="showTab('settings')">Settings</button>
-    </div>
+      <div id="ss-graph-wrap" style="margin-bottom:16px;">
+        <div class="section-label" style="margin-bottom:8px;">Effort Over Time</div>
+        <div id="ss-effort-bars" style="display:flex;height:40px;border-radius:var(--r-sm);overflow:hidden;gap:1px;"></div>
+      </div>
 
-    <!-- History -->
-    <div class="acct-section active" id="section-history">
-      <div id="history-loading" style="text-align:center; padding:48px 16px; color:var(--text-muted); font-size:14px;">
-        Loading sessions...
+      <div id="ss-blocks"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-secondary" style="width:100%;" onclick="closeSheet('session-sheet')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Workout Detail Sheet -->
+<div class="sheet-overlay" id="workout-sheet" onclick="closeSheet('workout-sheet')">
+  <div class="sheet" onclick="event.stopPropagation()" style="max-height:85vh;overflow-y:auto;">
+    <div class="sheet-handle"></div>
+    <div style="padding:0 20px 8px;">
+      <div class="sheet-title" id="ws-title">Workout</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;" id="ws-meta"></div>
+      <div id="ws-blocks"></div>
+    </div>
+    <div class="sheet-actions" style="flex-direction:row;">
+      <button class="btn btn-danger btn-sm" onclick="deleteSavedWorkout()" style="flex:0 0 auto;width:auto;">Delete</button>
+      <button class="btn btn-primary" onclick="startSavedWorkout()" style="flex:1;">Start Session</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <button class="btn btn-ghost btn-sm" onclick="window.location.href='/'">← Home</button>
+    <span class="brand">SYNCD<span class="brand-dot">.</span></span>
+    <span style="font-size:12px;color:var(--text-muted);" id="user-label"></span>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="acct-tabbar">
+    <button class="acct-tab active" id="tab-history" onclick="showTab('history')">History</button>
+    <button class="acct-tab" id="tab-saved" onclick="showTab('saved')">Saved</button>
+    <button class="acct-tab" id="tab-settings" onclick="showTab('settings')">Settings</button>
+  </div>
+
+  <div class="scroll">
+
+    <!-- History tab -->
+    <div class="acct-section" id="section-history" style="display:block;">
+      <div id="history-loading" style="text-align:center;padding:48px 16px;color:var(--text-muted);font-size:14px;">
+        Loading sessions…
       </div>
       <div id="history-empty" class="acct-empty" style="display:none;">
-        <div class="empty-icon">🚴</div>
-        <p>No sessions yet. Host a workout to see your history here.</p>
+        <div style="font-size:36px;margin-bottom:12px;">🚴</div>
+        <p>No rides yet. Host a workout to see your history here.</p>
       </div>
-      <div class="acct-grid" id="history-cards"></div>
+      <div id="history-cards"></div>
     </div>
 
-    <!-- Saved Workouts -->
-    <div class="acct-section" id="section-saved">
-      <div id="saved-loading" style="text-align:center; padding:48px 16px; color:var(--text-muted); font-size:14px;">
-        Loading saved workouts...
+    <!-- Saved Workouts tab -->
+    <div class="acct-section" id="section-saved" style="display:none;">
+      <div id="saved-loading" style="text-align:center;padding:48px 16px;color:var(--text-muted);font-size:14px;">
+        Loading saved workouts…
       </div>
       <div id="saved-empty" class="acct-empty" style="display:none;">
-        <div class="empty-icon">💾</div>
-        <p>No saved workouts yet. Use the <strong>Save Workout</strong> button in the builder to save one.</p>
+        <div style="font-size:36px;margin-bottom:12px;">💾</div>
+        <p>No saved workouts yet.</p>
         <button class="btn btn-secondary btn-sm" onclick="window.location.href='/'" style="margin-top:16px;">Go to Builder</button>
       </div>
-      <div class="acct-grid" id="saved-cards"></div>
+      <div id="saved-cards"></div>
     </div>
 
-    <!-- Settings -->
-    <div class="acct-section" id="section-settings">
-      <div class="settings-max">
+    <!-- Settings tab -->
+    <div class="acct-section" id="section-settings" style="display:none;">
+      <div style="max-width:400px;">
         <div class="input-group" style="margin-bottom:16px;">
           <label class="input-label">Display Name</label>
           <input class="inp" type="text" id="settings-name" placeholder="Your display name" />
         </div>
         <div class="input-group" style="margin-bottom:20px;">
           <label class="input-label">Email</label>
-          <input class="inp" type="email" id="settings-email" readonly
-                 style="opacity:0.5; cursor:not-allowed;" />
+          <input class="inp" type="email" id="settings-email" readonly style="opacity:0.5;cursor:not-allowed;" />
         </div>
         <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
-        <div class="settings-feedback" id="settings-feedback"></div>
-
-        <hr style="margin:28px 0;" />
+        <div id="settings-feedback" style="font-size:13px;margin-top:8px;min-height:18px;"></div>
+        <hr style="margin:28px 0;border:none;border-top:0.5px solid var(--border);" />
         <button class="btn btn-danger" onclick="logout()" style="width:100%;">Log Out</button>
       </div>
     </div>
 
   </div>
+</div>
 
-  <!-- Session Detail Modal -->
-  <div class="modal-overlay" id="session-modal" onclick="closeModal('session-modal')">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header" style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
-        <div>
-          <div class="modal-title" id="modal-session-title"></div>
-          <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;" id="modal-session-meta"></div>
-        </div>
-        <button class="modal-close-btn" onclick="closeModal('session-modal')">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="modal-participants" style="display:none; margin-bottom:16px;">
-          <div class="modal-session-label">Riders</div>
-          <div class="p-chips" id="modal-participants-list"></div>
-        </div>
-        <div id="modal-effort-graph" style="display:none; margin-bottom:16px;">
-          <div class="modal-session-label">Effort Over Time</div>
-          <div class="effort-bars" id="modal-effort-bars"></div>
-        </div>
-        <div id="modal-session-blocks"></div>
-      </div>
-    </div>
-  </div>
+<script>
+  let _supabase = null, _token = null, _user = null, _activeWorkoutId = null;
 
-  <!-- Saved Workout Preview Modal -->
-  <div class="modal-overlay" id="workout-modal" onclick="closeModal('workout-modal')">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header" style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
-        <div>
-          <div class="modal-title" id="modal-workout-title"></div>
-          <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;" id="modal-workout-meta"></div>
-        </div>
-        <button class="modal-close-btn" onclick="closeModal('workout-modal')">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="modal-workout-blocks"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-danger btn-sm" onclick="deleteSavedWorkout()">Delete</button>
-        <button class="btn btn-primary" onclick="startSavedWorkout()" style="flex:1;">Start Session</button>
-      </div>
-    </div>
-  </div>
+  // ── Init ────────────────────────────────────────────────────────────────
+  async function init() {
+    const res = await fetch('/config');
+    const cfg = await res.json();
+    if (!cfg.supabase_url) { window.location.href = '/auth'; return; }
+    _supabase = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) { window.location.href = '/auth'; return; }
+    _token = session.access_token;
+    _user = session.user;
+    const name = _user.user_metadata?.full_name || _user.email.split('@')[0];
+    document.getElementById('user-label').textContent = name;
+    document.getElementById('settings-name').value = name;
+    document.getElementById('settings-email').value = _user.email;
+    loadHistory();
+    loadSaved();
+  }
+  init();
 
-  <script>
-    let _supabase = null;
-    let _token = null;
-    let _user = null;
-    let _activeWorkoutId = null;
+  // ── Tabs ────────────────────────────────────────────────────────────────
+  function showTab(tab) {
+    ['history','saved','settings'].forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+      document.getElementById('section-' + t).style.display = t === tab ? 'block' : 'none';
+    });
+  }
 
-    // ── Init ──────────────────────────────────────────────────────────────
-    async function init() {
-      const res = await fetch('/config');
-      const cfg = await res.json();
-      if (!cfg.supabase_url) { window.location.href = '/auth'; return; }
-      _supabase = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
-      const { data: { session } } = await _supabase.auth.getSession();
-      if (!session) { window.location.href = '/auth'; return; }
-      _token = session.access_token;
-      _user = session.user;
-      const name = _user.user_metadata?.full_name || _user.email.split('@')[0];
-      document.getElementById('user-label').textContent = _user.email;
-      document.getElementById('settings-name').value = name;
-      document.getElementById('settings-email').value = _user.email;
-      loadHistory();
-      loadSaved();
+  // ── Helpers ─────────────────────────────────────────────────────────────
+  function authHeaders() {
+    return { 'Authorization': `Bearer ${_token}`, 'Content-Type': 'application/json' };
+  }
+
+  function fmtDuration(secs) {
+    if (!secs) return '—';
+    const m = Math.floor(secs / 60), s = secs % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function effortColor(pct) {
+    const hue = Math.round(120 - pct * 1.2);
+    return `hsl(${Math.max(0, hue)},100%,50%)`;
+  }
+
+  function chip(text) {
+    return `<span class="badge b-neutral">${text}</span>`;
+  }
+
+  function openSheet(id) { document.getElementById(id).classList.add('open'); }
+  function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+
+  // ── Session History ──────────────────────────────────────────────────────
+  async function loadHistory() {
+    const res = await fetch('/api/sessions', { headers: authHeaders() });
+    const sessions = res.ok ? await res.json() : [];
+    document.getElementById('history-loading').style.display = 'none';
+    if (!sessions.length) {
+      document.getElementById('history-empty').style.display = 'block';
+      return;
     }
-    init();
-
-    // ── Tabs ──────────────────────────────────────────────────────────────
-    function showTab(tab) {
-      document.querySelectorAll('.acct-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.acct-section').forEach(s => s.classList.remove('active'));
-      document.getElementById('tab-' + tab).classList.add('active');
-      document.getElementById('section-' + tab).classList.add('active');
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────
-    function authHeaders() {
-      return { 'Authorization': `Bearer ${_token}`, 'Content-Type': 'application/json' };
-    }
-
-    function fmtDuration(secs) {
-      if (!secs) return '—';
-      const m = Math.floor(secs / 60), s = secs % 60;
-      return s > 0 ? `${m}m ${s}s` : `${m}m`;
-    }
-
-    function fmtDate(iso) {
-      if (!iso) return '—';
-      return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-    }
-
-    function effortColor(pct) {
-      const hue = Math.round(120 - pct * 1.2);
-      return `hsl(${Math.max(0, hue)}, 100%, 50%)`;
-    }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.remove('open');
-    }
-
-    function chip(text) {
-      return `<span class="badge b-neutral">${text}</span>`;
-    }
-
-    // ── Session History ────────────────────────────────────────────────────
-    async function loadHistory() {
-      const res = await fetch('/api/sessions', { headers: authHeaders() });
-      const sessions = res.ok ? await res.json() : [];
-      document.getElementById('history-loading').style.display = 'none';
-      if (!sessions.length) {
-        document.getElementById('history-empty').style.display = 'block';
-        return;
-      }
-      const grid = document.getElementById('history-cards');
-      sessions.forEach(s => {
-        const participants = s.participants || [];
-        const card = document.createElement('div');
-        card.className = 'session-card';
-        card.innerHTML = `
-          <div class="session-card-header">
-            <span class="card-title">${s.name || 'Untitled Session'}</span>
-            ${participants.length ? `<span class="badge b-neutral">${participants.length} rider${participants.length !== 1 ? 's' : ''}</span>` : ''}
-          </div>
-          <div class="session-card-body" style="display:flex; gap:8px; flex-wrap:wrap;">
-            ${chip(fmtDate(s.started_at || s.created_at))}
-            ${s.total_time_seconds ? chip(fmtDuration(s.total_time_seconds)) : ''}
-          </div>`;
-        card.onclick = () => openSessionModal(s.id);
-        grid.appendChild(card);
-      });
-    }
-
-    async function openSessionModal(sessionId) {
-      const res = await fetch(`/api/sessions/${sessionId}`, { headers: authHeaders() });
-      if (!res.ok) return;
-      const s = await res.json();
-
-      document.getElementById('modal-session-title').textContent = s.name || 'Untitled Session';
-
-      const meta = document.getElementById('modal-session-meta');
-      meta.innerHTML = [
-        fmtDate(s.started_at || s.created_at),
-        fmtDuration(s.total_time_seconds),
-        s.host_name ? `Host: ${s.host_name}` : '',
-      ].filter(Boolean).map(chip).join('');
-
+    const container = document.getElementById('history-cards');
+    sessions.forEach(s => {
       const participants = s.participants || [];
-      if (participants.length) {
-        document.getElementById('modal-participants').style.display = '';
-        document.getElementById('modal-participants-list').innerHTML =
-          participants.map(p => `<span class="p-chip">🚴 ${p.name}</span>`).join('');
-      } else {
-        document.getElementById('modal-participants').style.display = 'none';
+      const card = document.createElement('div');
+      card.className = 'session-card';
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <span style="font-size:14px;font-weight:600;color:var(--text);">${s.name || 'Untitled Session'}</span>
+          ${participants.length ? `<span class="badge b-neutral">${participants.length} rider${participants.length !== 1 ? 's' : ''}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${chip(fmtDate(s.started_at || s.created_at))}
+          ${s.total_time_seconds ? chip(fmtDuration(s.total_time_seconds)) : ''}
+        </div>`;
+      card.onclick = () => openSessionSheet(s.id);
+      container.appendChild(card);
+    });
+  }
+
+  async function openSessionSheet(sessionId) {
+    const res = await fetch(`/api/sessions/${sessionId}`, { headers: authHeaders() });
+    if (!res.ok) return;
+    const s = await res.json();
+
+    document.getElementById('ss-title').textContent = s.name || 'Untitled Session';
+    document.getElementById('ss-meta').innerHTML = [
+      fmtDate(s.started_at || s.created_at),
+      fmtDuration(s.total_time_seconds),
+      s.host_name ? `Host: ${s.host_name}` : '',
+    ].filter(Boolean).map(chip).join('');
+
+    const participants = s.participants || [];
+    const ridersWrap = document.getElementById('ss-riders-wrap');
+    if (participants.length) {
+      ridersWrap.style.display = '';
+      document.getElementById('ss-riders').innerHTML =
+        participants.map(p => `<span class="badge b-neutral">🚴 ${p.name}</span>`).join('');
+    } else {
+      ridersWrap.style.display = 'none';
+    }
+
+    const blocks = (s.blocks || []).sort((a, b) => a.block_index - b.block_index);
+    const graphWrap = document.getElementById('ss-graph-wrap');
+    if (blocks.length) {
+      graphWrap.style.display = '';
+      buildEffortGraph(blocks);
+    } else {
+      graphWrap.style.display = 'none';
+    }
+
+    document.getElementById('ss-blocks').innerHTML = renderBlockBreakdown(blocks);
+    openSheet('session-sheet');
+  }
+
+  function buildEffortGraph(blocks) {
+    const expanded = [];
+    blocks.forEach(b => {
+      for (let r = 0; r < (b.rep_count || 1); r++) {
+        (b.intervals || []).forEach(iv => expanded.push(iv));
       }
+    });
+    document.getElementById('ss-effort-bars').innerHTML = expanded.map(iv => {
+      const color = effortColor(iv.effort_percent || 0);
+      return `<div style="flex:${iv.duration_seconds || 1};background:${color};height:100%;cursor:default;" title="${iv.label} — ${iv.effort_percent}%"></div>`;
+    }).join('');
+  }
 
-      const blocks = (s.blocks || []).sort((a, b) => a.block_index - b.block_index);
+  function renderBlockBreakdown(blocks) {
+    if (!blocks.length) return `<p style="color:var(--text-muted);font-size:13px;">No interval data.</p>`;
+    return blocks.map((b, i) => `
+      <div style="margin-bottom:20px;">
+        <div class="section-label" style="margin-bottom:8px;">Block ${i + 1}${b.rep_count > 1 ? ` × ${b.rep_count} reps` : ''}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;color:var(--text-faint);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;padding:0 8px 8px 0;border-bottom:0.5px solid var(--border);">Interval</th>
+              <th style="text-align:left;color:var(--text-faint);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;padding:0 8px 8px 0;border-bottom:0.5px solid var(--border);">Effort</th>
+              <th style="text-align:left;color:var(--text-faint);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;padding:0 0 8px 0;border-bottom:0.5px solid var(--border);">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(b.intervals || []).map(iv => `
+              <tr>
+                <td style="padding:8px 8px 8px 0;border-bottom:0.5px solid rgba(255,255,255,0.04);color:var(--text-muted);">${iv.label || '—'}</td>
+                <td style="padding:8px 8px 8px 0;border-bottom:0.5px solid rgba(255,255,255,0.04);color:var(--text-muted);">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${effortColor(iv.effort_percent || 0)};margin-right:6px;vertical-align:middle;"></span>${iv.effort_percent || 0}%
+                </td>
+                <td style="padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.04);color:var(--text-muted);">${fmtDuration(iv.duration_seconds)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`).join('');
+  }
 
-      if (blocks.length) {
-        document.getElementById('modal-effort-graph').style.display = '';
-        buildEffortGraph(blocks);
-      } else {
-        document.getElementById('modal-effort-graph').style.display = 'none';
-      }
-
-      document.getElementById('modal-session-blocks').innerHTML = renderBlockBreakdown(blocks);
-      document.getElementById('session-modal').classList.add('open');
+  // ── Saved Workouts ────────────────────────────────────────────────────────
+  async function loadSaved() {
+    const res = await fetch('/api/workouts', { headers: authHeaders() });
+    const workouts = res.ok ? await res.json() : [];
+    document.getElementById('saved-loading').style.display = 'none';
+    if (!workouts.length) {
+      document.getElementById('saved-empty').style.display = 'block';
+      return;
     }
+    const container = document.getElementById('saved-cards');
+    workouts.forEach(w => {
+      const blocks = w.blocks_json?.blocks || [];
+      const card = document.createElement('div');
+      card.className = 'session-card';
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <span style="font-size:14px;font-weight:600;color:var(--text);">${w.name}</span>
+          <span class="badge b-neutral">${blocks.length} block${blocks.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${chip(fmtDuration(w.total_duration_seconds))}
+          ${chip(fmtDate(w.created_at))}
+        </div>`;
+      card.onclick = () => openWorkoutSheet(w);
+      container.appendChild(card);
+    });
+  }
 
-    function buildEffortGraph(blocks) {
-      const expanded = [];
-      blocks.forEach(b => {
-        for (let r = 0; r < (b.rep_count || 1); r++) {
-          (b.intervals || []).forEach(iv => expanded.push(iv));
-        }
-      });
-      const bars = document.getElementById('modal-effort-bars');
-      bars.innerHTML = expanded.map(iv => {
-        const color = effortColor(iv.effort_percent || 0);
-        return `<div class="effort-bar" style="flex:${iv.duration_seconds || 1};background:${color};" title="${iv.label} — ${iv.effort_percent}%"></div>`;
-      }).join('');
+  function openWorkoutSheet(workout) {
+    _activeWorkoutId = workout.id;
+    document.getElementById('ws-title').textContent = workout.name;
+
+    const blocks = workout.blocks_json?.blocks || [];
+    document.getElementById('ws-meta').innerHTML = [
+      fmtDuration(workout.total_duration_seconds),
+      `${blocks.length} block${blocks.length !== 1 ? 's' : ''}`,
+      fmtDate(workout.created_at),
+    ].map(chip).join('');
+
+    const dbBlocks = blocks.map((b, i) => ({
+      block_index: i,
+      rep_count: b.reps || 1,
+      intervals: (b.intervals || []).map(iv => ({
+        label: iv.label,
+        effort_percent: iv.effort,
+        duration_seconds: iv.duration,
+      })),
+    }));
+    document.getElementById('ws-blocks').innerHTML = renderBlockBreakdown(dbBlocks);
+    openSheet('workout-sheet');
+  }
+
+  async function startSavedWorkout() {
+    const workout = await (await fetch(`/api/workouts/${_activeWorkoutId}`, { headers: authHeaders() })).json();
+    const { data: { session } } = await _supabase.auth.getSession();
+    const token = session?.access_token || _token;
+    const userName = _user.user_metadata?.full_name || _user.email.split('@')[0];
+
+    const res = await fetch('/create-session', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const { code } = await res.json();
+
+    sessionStorage.setItem('cyclesync_template', JSON.stringify(workout.blocks_json));
+    sessionStorage.setItem('cyclesync_template_name', workout.name);
+
+    let url = `/host?code=${code}&name=${encodeURIComponent(userName)}&token=${encodeURIComponent(token)}`;
+    url += `&session=${encodeURIComponent(workout.name)}&template=1`;
+    window.location.href = url;
+  }
+
+  async function deleteSavedWorkout() {
+    if (!confirm('Delete this workout? This cannot be undone.')) return;
+    const res = await fetch(`/api/workouts/${_activeWorkoutId}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (res.ok) {
+      closeSheet('workout-sheet');
+      document.getElementById('saved-cards').innerHTML = '';
+      document.getElementById('saved-empty').style.display = 'none';
+      document.getElementById('saved-loading').style.display = 'block';
+      await loadSaved();
     }
+  }
 
-    function renderBlockBreakdown(blocks) {
-      if (!blocks.length) return `<p style="color:var(--text-muted); font-size:13px;">No interval data.</p>`;
-      return blocks.map((b, i) => `
-        <div class="block-section">
-          <div class="block-section-title">Block ${i + 1}${b.rep_count > 1 ? ` × ${b.rep_count} reps` : ''}</div>
-          <table class="interval-table">
-            <thead><tr><th>Interval</th><th>Effort</th><th>Duration</th></tr></thead>
-            <tbody>
-              ${(b.intervals || []).map(iv => `
-                <tr>
-                  <td>${iv.label || '—'}</td>
-                  <td><span class="effort-dot" style="background:${effortColor(iv.effort_percent || 0)};"></span>${iv.effort_percent || 0}%</td>
-                  <td>${fmtDuration(iv.duration_seconds)}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`).join('');
+  // ── Settings ──────────────────────────────────────────────────────────────
+  async function saveSettings() {
+    const name = document.getElementById('settings-name').value.trim();
+    const fb = document.getElementById('settings-feedback');
+    fb.style.color = '';
+    if (!name) { fb.style.color = 'var(--red)'; fb.textContent = 'Name cannot be empty.'; return; }
+    const res = await fetch('/api/profile', {
+      method: 'PATCH', headers: authHeaders(),
+      body: JSON.stringify({ full_name: name }),
+    });
+    if (res.ok) {
+      fb.style.color = 'var(--green)'; fb.textContent = 'Saved!';
+    } else {
+      fb.style.color = 'var(--red)'; fb.textContent = 'Could not save. Please try again.';
     }
+    setTimeout(() => { fb.textContent = ''; }, 3000);
+  }
 
-    // ── Saved Workouts ─────────────────────────────────────────────────────
-    async function loadSaved() {
-      const res = await fetch('/api/workouts', { headers: authHeaders() });
-      const workouts = res.ok ? await res.json() : [];
-      document.getElementById('saved-loading').style.display = 'none';
-      if (!workouts.length) {
-        document.getElementById('saved-empty').style.display = 'block';
-        return;
-      }
-      const grid = document.getElementById('saved-cards');
-      workouts.forEach(w => {
-        const blocks = w.blocks_json?.blocks || [];
-        const card = document.createElement('div');
-        card.className = 'session-card';
-        card.innerHTML = `
-          <div class="session-card-header">
-            <span class="card-title">${w.name}</span>
-            <span class="badge b-neutral">${blocks.length} block${blocks.length !== 1 ? 's' : ''}</span>
-          </div>
-          <div class="session-card-body" style="display:flex; gap:8px; flex-wrap:wrap;">
-            ${chip(fmtDuration(w.total_duration_seconds))}
-            ${chip(fmtDate(w.created_at))}
-          </div>`;
-        card.onclick = () => openWorkoutModal(w);
-        grid.appendChild(card);
-      });
-    }
-
-    function openWorkoutModal(workout) {
-      _activeWorkoutId = workout.id;
-      document.getElementById('modal-workout-title').textContent = workout.name;
-
-      const blocks = workout.blocks_json?.blocks || [];
-      document.getElementById('modal-workout-meta').innerHTML = [
-        fmtDuration(workout.total_duration_seconds),
-        `${blocks.length} block${blocks.length !== 1 ? 's' : ''}`,
-        fmtDate(workout.created_at),
-      ].map(chip).join('');
-
-      const dbBlocks = blocks.map((b, i) => ({
-        block_index: i,
-        rep_count: b.reps || 1,
-        intervals: (b.intervals || []).map(iv => ({
-          label: iv.label,
-          effort_percent: iv.effort,
-          duration_seconds: iv.duration,
-        })),
-      }));
-      document.getElementById('modal-workout-blocks').innerHTML = renderBlockBreakdown(dbBlocks);
-      document.getElementById('workout-modal').classList.add('open');
-    }
-
-    async function startSavedWorkout() {
-      const workout = await (await fetch(`/api/workouts/${_activeWorkoutId}`, { headers: authHeaders() })).json();
-      const { data: { session } } = await _supabase.auth.getSession();
-      const token = session?.access_token || _token;
-      const userName = _user.user_metadata?.full_name || _user.email.split('@')[0];
-
-      const res = await fetch('/create-session', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const { code } = await res.json();
-
-      sessionStorage.setItem('cyclesync_template', JSON.stringify(workout.blocks_json));
-      sessionStorage.setItem('cyclesync_template_name', workout.name);
-
-      let url = `/host?code=${code}&name=${encodeURIComponent(userName)}&token=${encodeURIComponent(token)}`;
-      url += `&session=${encodeURIComponent(workout.name)}&template=1`;
-      window.location.href = url;
-    }
-
-    async function deleteSavedWorkout() {
-      if (!confirm('Delete this workout? This cannot be undone.')) return;
-      const res = await fetch(`/api/workouts/${_activeWorkoutId}`, {
-        method: 'DELETE', headers: authHeaders(),
-      });
-      if (res.ok) {
-        closeModal('workout-modal');
-        document.getElementById('saved-cards').innerHTML = '';
-        document.getElementById('saved-empty').style.display = 'none';
-        document.getElementById('saved-loading').style.display = 'block';
-        await loadSaved();
-      }
-    }
-
-    // ── Settings ──────────────────────────────────────────────────────────
-    async function saveSettings() {
-      const name = document.getElementById('settings-name').value.trim();
-      const fb = document.getElementById('settings-feedback');
-      fb.className = 'settings-feedback';
-      if (!name) { fb.textContent = 'Name cannot be empty.'; fb.classList.add('err'); return; }
-      const res = await fetch('/api/profile', {
-        method: 'PATCH', headers: authHeaders(),
-        body: JSON.stringify({ full_name: name }),
-      });
-      if (res.ok) {
-        fb.textContent = 'Saved!';
-        fb.classList.add('ok');
-      } else {
-        fb.textContent = 'Could not save. Please try again.';
-        fb.classList.add('err');
-      }
-      setTimeout(() => { fb.className = 'settings-feedback'; }, 3000);
-    }
-
-    async function logout() {
-      await _supabase.auth.signOut();
-      window.location.href = '/auth';
-    }
-  </script>
+  async function logout() {
+    await _supabase.auth.signOut();
+    window.location.href = '/auth';
+  }
+</script>
 </body>
 </html>
