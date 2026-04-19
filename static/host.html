@@ -20,6 +20,25 @@
   </div>
 </div>
 
+<!-- Save workout sheet -->
+<div class="sheet-overlay" id="save-sheet" onclick="if(event.target===this)closeSheet('save-sheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Save Workout</div>
+    <div style="padding:0 20px 16px;">
+      <div class="input-group">
+        <label class="input-label">Workout name</label>
+        <input class="inp" type="text" id="save-workout-name" placeholder="e.g. Thursday intervals" />
+      </div>
+      <div id="save-workout-msg" style="display:none;color:var(--green);font-size:13px;margin-top:8px;"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-primary" onclick="saveWorkout()">💾 Save Workout</button>
+      <button class="btn btn-ghost" onclick="closeSheet('save-sheet')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- End session sheet -->
 <div class="sheet-overlay" id="end-sheet" onclick="if(event.target===this)closeSheet('end-sheet')">
   <div class="sheet">
@@ -41,12 +60,20 @@
 
 <div class="app">
 
-  <!-- Topbar: builder state -->
-  <div class="topbar" id="topbar-builder">
-    <button class="btn btn-ghost btn-sm" onclick="cancelSession()">← Back</button>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span class="badge b-neutral" id="code-badge-topbar"></span>
-      <button class="btn btn-secondary btn-sm" onclick="shareSession()">Share</button>
+  <!-- Topbar: builder state (2-row) -->
+  <div class="topbar" id="topbar-builder" style="flex-direction:column;align-items:stretch;gap:10px;padding:12px 20px;height:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span class="brand">SYNCD<span class="brand-dot">.</span></span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-ghost btn-sm" id="topbar-save-btn" onclick="openSheet('save-sheet')" style="display:none;">Save workout</button>
+        <button class="btn btn-secondary btn-sm" onclick="shareSession()">Share</button>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+      <div>
+        <div style="font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:-0.3px;color:var(--text);line-height:1.2;" id="builder-session-title">New Session</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">code: <span id="code-topbar-display" style="letter-spacing:2px;font-weight:600;"></span></div>
+      </div>
     </div>
   </div>
 
@@ -62,39 +89,20 @@
   <div class="scroll">
 
     <!-- ── BUILDER SECTION ───────────────────── -->
-    <div id="section-builder" style="padding:16px 20px 48px;">
-
-      <div style="margin-bottom:16px;">
-        <p style="font-size:12px;color:var(--text-faint);margin-bottom:4px;">Session code</p>
-        <p style="font-size:26px;font-weight:700;letter-spacing:6px;color:var(--green);margin-bottom:2px;" id="session-code-display"></p>
-        <div id="session-name-display" style="display:none;font-size:11px;color:var(--text-faint);font-weight:500;text-transform:uppercase;letter-spacing:2px;margin-top:2px;"></div>
-      </div>
-
-      <div style="margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span style="font-size:13px;color:var(--text-muted);" id="wait-status">Waiting for riders to join…</span>
-        </div>
-        <ul id="participant-list" style="list-style:none;padding:0;margin:0;"></ul>
-      </div>
-
-      <hr style="margin:16px 0;" />
+    <div id="section-builder" style="padding:12px 20px 48px;">
 
       <div class="section-label">Presets</div>
       <div id="preset-grid" class="preset-grid"></div>
 
-      <div class="section-label">Your Workout</div>
+      <div class="section-label">Your session</div>
       <div id="blocks-container"></div>
       <button class="btn-ghost-green btn-sm" onclick="addBlock()" style="margin-top:4px;">+ Add Block</button>
 
-      <!-- Save workout (auth only) -->
-      <div id="save-workout-section" style="display:none;margin-top:20px;">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input class="inp" type="text" id="save-workout-name"
-                 placeholder="Workout name" style="flex:1;min-width:160px;" />
-          <button class="btn btn-secondary btn-sm" onclick="saveWorkout()">💾 Save</button>
-        </div>
-        <div id="save-workout-msg" style="display:none;color:var(--green);font-size:13px;margin-top:8px;"></div>
+      <div class="section-label" style="margin-top:24px;">Who's joined</div>
+      <div style="margin-bottom:8px;">
+        <span style="font-size:13px;color:var(--text-muted);" id="wait-status">Waiting for riders to join…</span>
       </div>
+      <div id="participant-list"></div>
 
       <button id="start-btn" class="btn btn-primary" onclick="startWorkout()"
               style="width:100%;margin-top:24px;display:none;">
@@ -209,7 +217,7 @@
   checkAuth();
 
   if (token) {
-    document.getElementById('save-workout-section').style.display = 'block';
+    document.getElementById('topbar-save-btn').style.display = '';
   }
 
   // Load template from sessionStorage if redirected from Account page
@@ -225,13 +233,11 @@
   function cancelSession() { window.location.href = '/'; }
 
   // Init display
-  document.getElementById('session-code-display').textContent = code;
-  document.getElementById('code-badge-topbar').textContent = code;
+  document.getElementById('code-topbar-display').textContent = code;
   document.getElementById('live-code').textContent = code;
   if (sessionName) {
-    const el = document.getElementById('session-name-display');
-    el.textContent = sessionName;
-    el.style.display = 'block';
+    document.getElementById('builder-session-title').textContent = sessionName;
+    document.getElementById('save-workout-name').value = sessionName;
   }
 
   // WebSocket
@@ -250,11 +256,12 @@
     if (data.type === 'participants') {
       _participantNames = data.names;
       // Builder view
-      const list = document.getElementById('participant-list');
-      list.innerHTML = data.names.map(n => `<li style="padding:6px 0;border-bottom:0.5px solid var(--border);font-size:13px;color:var(--text-muted);">🚴 ${n}</li>`).join('');
+      renderBuilderParticipants(data.names);
       if (data.names.length >= 1) {
         document.getElementById('start-btn').style.display = 'block';
         document.getElementById('wait-status').textContent = `${data.names.length} rider${data.names.length > 1 ? 's' : ''} joined`;
+      } else {
+        document.getElementById('wait-status').textContent = 'Waiting for riders to join…';
       }
       // Live view
       document.getElementById('meta-riders').textContent = data.names.length;
@@ -374,6 +381,19 @@
   function openSheet(id)  { document.getElementById(id).classList.add('open'); }
   function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
 
+  function renderBuilderParticipants(names) {
+    const el = document.getElementById('participant-list');
+    if (!names.length) { el.innerHTML = ''; return; }
+    el.innerHTML = names.map(n => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border);">
+        <div style="width:24px;height:24px;border-radius:50%;background:rgba(98,209,54,0.15);border:1px solid rgba(98,209,54,0.3);flex-shrink:0;"></div>
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--text);">${n}</div>
+          <div style="font-size:10px;color:var(--text-faint);margin-top:1px;">Connected</div>
+        </div>
+      </div>`).join('');
+  }
+
   function renderFriendsList(names) {
     const el = document.getElementById('friends-list');
     if (!names.length) { el.innerHTML = ''; return; }
@@ -425,8 +445,8 @@
     block.className = 'block';
     block.innerHTML = `
       <div class="block-header">
-        <span class="block-title">Block ${idx + 1}</span>
-        <button class="btn btn-danger btn-sm" onclick="removeBlock(this)">Delete</button>
+        <span class="block-title">SEGMENT ${idx + 1}</span>
+        <button class="btn btn-ghost btn-sm" onclick="removeBlock(this)" style="color:rgba(255,255,255,0.45);">Delete segment</button>
       </div>
       <div class="interval-labels">
         <span style="flex:2">Interval name</span>
@@ -438,10 +458,11 @@
       <div class="block-intervals"></div>
       <div class="block-footer">
         <button class="btn-ghost-green btn-sm" style="flex:1;"
-                onclick="addIntervalToBlock(this)">+ Add Interval</button>
-        <label>Reps
+                onclick="addIntervalToBlock(this)">+ Add interval</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
           <input class="inp block-reps" type="number" min="1" value="1"
-                 style="width:56px; text-align:center;" />
+                 style="width:48px;text-align:center;" />
+          reps
         </label>
       </div>
     `;
@@ -457,7 +478,7 @@
 
   function updateBlockTitles() {
     document.querySelectorAll('.block-title').forEach((el, i) => {
-      el.textContent = `Block ${i + 1}`;
+      el.textContent = `SEGMENT ${i + 1}`;
     });
   }
 
@@ -508,10 +529,10 @@
       });
       if (res.ok) {
         const msg = document.getElementById('save-workout-msg');
-        msg.textContent = `"${wName}" saved to your account.`;
+        msg.textContent = `"${wName}" saved!`;
         msg.style.display = 'block';
         nameInput.value = '';
-        setTimeout(() => msg.style.display = 'none', 3000);
+        setTimeout(() => { msg.style.display = 'none'; closeSheet('save-sheet'); }, 1800);
       }
     } catch(e) { console.error('Save failed:', e); }
   }
@@ -526,8 +547,8 @@
       block.className = 'block';
       block.innerHTML = `
         <div class="block-header">
-          <span class="block-title">Block ${idx + 1}</span>
-          <button class="btn btn-danger btn-sm" onclick="removeBlock(this)">Delete</button>
+          <span class="block-title">SEGMENT ${idx + 1}</span>
+          <button class="btn btn-ghost btn-sm" onclick="removeBlock(this)" style="color:rgba(255,255,255,0.45);">Delete segment</button>
         </div>
         <div class="interval-labels">
           <span style="flex:2">Interval name</span>
@@ -539,10 +560,11 @@
         <div class="block-intervals"></div>
         <div class="block-footer">
           <button class="btn-ghost-green btn-sm" style="flex:1;"
-                  onclick="addIntervalToBlock(this)">+ Add Interval</button>
-          <label>Reps
+                  onclick="addIntervalToBlock(this)">+ Add interval</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
             <input class="inp block-reps" type="number" min="1" value="${blockData.reps || 1}"
-                   style="width:56px; text-align:center;" />
+                   style="width:48px;text-align:center;" />
+            reps
           </label>
         </div>
       `;
@@ -620,32 +642,32 @@
       open: true,
       difficulty: 'Cadence Focus',
       tooltip: 'Free-form session with no fixed structure. Build your own intervals or ride at your own pace.',
-      effortLabel: 'Cadence Focus', effortColor: '#9b5cf5',
+      effortLabel: 'Cadence Focus', effortColor: '#A78BFA',
       blocks: [
         { intervals: [{ label: 'Open Ride', effort: 65, duration: 3600 }], reps: 1 },
       ]
     },
     { id: 'recovery', name: 'Recovery Spin',
       tooltip: 'Easy recovery-focused ride to get moving without fatigue.',
-      effortLabel: 'Easy', effortColor: '#4a9eff',
+      effortLabel: 'Zone 1 · Recovery', effortColor: '#4a9eff',
       blocks: [
         { intervals: [{ label: 'Warm-up',   effort: 50, duration: 300 }], reps: 1 },
         { intervals: [{ label: 'Easy Ride', effort: 50, duration: 600 }], reps: 1 },
         { intervals: [{ label: 'Cool-down', effort: 50, duration: 300 }], reps: 1 },
       ]
     },
-    { id: 'endurance', name: 'Endurance Ride',
+    { id: 'endurance', name: 'Endurance Spin', cardName: 'Endurance<br>Spin',
       tooltip: 'Steady aerobic ride at a conversational pace.',
-      effortLabel: 'Steady', effortColor: '#22ff66',
+      effortLabel: 'Zone 2 · Endurance', effortColor: '#62D136',
       blocks: [
         { intervals: [{ label: 'Warm-up',       effort: 50, duration:  300 }], reps: 1 },
         { intervals: [{ label: 'Steady Effort', effort: 65, duration: 2100 }], reps: 1 },
         { intervals: [{ label: 'Cool-down',     effort: 50, duration:  300 }], reps: 1 },
       ]
     },
-    { id: 'sweetspot', name: 'Sweet Spot Builder',
+    { id: 'sweetspot', name: 'Sweet Spot Builder', cardName: 'Sweet Spot<br>Builder',
       tooltip: 'Time-efficient structured ride with sustained moderate-hard efforts.',
-      effortLabel: 'Moderate', effortColor: '#ff8c00',
+      effortLabel: 'Zone 3 · Tempo', effortColor: '#F59E0B',
       blocks: [
         { intervals: [{ label: 'Warm-up', effort: 50, duration: 600 }], reps: 1 },
         { intervals: [
@@ -660,7 +682,7 @@
     },
     { id: 'vo2', name: 'VO2 Punches', cardName: 'VO2<br>Punches',
       tooltip: 'Short hard efforts with recoveries to raise intensity.',
-      effortLabel: 'Hard', effortColor: '#ff3333',
+      effortLabel: 'Zone 5 · VO2 max', effortColor: '#EF4444',
       blocks: [
         { intervals: [{ label: 'Warm-up',  effort: 50, duration: 600 }], reps: 1 },
         { intervals: [
@@ -670,9 +692,9 @@
         { intervals: [{ label: 'Cool-down', effort: 50, duration: 300 }], reps: 1 },
       ]
     },
-    { id: 'spinouts', name: 'Spin-Outs',
+    { id: 'spinouts', name: 'Spin-outs', cardName: 'Spin-outs',
       tooltip: 'High-cadence drill to improve leg speed and coordination.',
-      effortLabel: 'Cadence Focus', effortColor: '#9b5cf5',
+      effortLabel: 'Cadence Focus', effortColor: '#A78BFA',
       blocks: [
         { intervals: [{ label: 'Warm-up', effort: 50, duration: 600 }], reps: 1 },
         { intervals: [
