@@ -442,20 +442,19 @@ html, body {
 .seg-plan {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   margin-bottom: 16px;
   padding: 0 20px;
 }
 
 .seg-row {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 14px;
+  flex-direction: column;
+  padding: 9px 12px;
   background: var(--surface);
   border: 0.5px solid var(--border);
-  border-radius: 11px;
-  transition: opacity 0.2s, border-color 0.2s, background 0.2s;
+  border-radius: 10px;
+  transition: opacity 0.25s, border-color 0.25s, background 0.25s;
 }
 
 .seg-row.active-seg {
@@ -463,12 +462,34 @@ html, body {
   background: rgba(98,209,54,0.03);
 }
 
-.seg-row.done-seg { opacity: 0.35; }
+.seg-row.done-seg { opacity: 0.28; }
 
-.seg-n  { font-size: 11px; color: var(--text-faint); font-weight: 600; min-width: 14px; }
+.seg-collapsed {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.seg-expanded {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 0.5px solid var(--border);
+}
+
+.seg-row.active-seg .seg-expanded { display: flex; }
+
+.seg-divider {
+  height: 0.5px;
+  background: var(--border);
+  margin: 6px 2px;
+}
+
+.seg-n  { font-size: 11px; color: var(--text-faint); font-weight: 600; min-width: 16px; flex-shrink: 0; }
 .seg-row.active-seg .seg-n { color: var(--green); }
-.seg-nm { font-size: 13px; font-weight: 600; flex: 1; letter-spacing: -0.1px; }
-.seg-dt { font-size: 11px; color: var(--text-muted); }
+.seg-nm { font-size: 13px; font-weight: 600; flex: 1; letter-spacing: -0.1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ─────────────────────────────────────────
    FRIENDS / PARTICIPANTS

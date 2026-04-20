@@ -518,6 +518,14 @@
     return 'Zone 1';
   }
 
+  function effortToZoneNum(e) {
+    if (e >= 90) return 5;
+    if (e >= 80) return 4;
+    if (e >= 50) return 3;
+    if (e >= 31) return 2;
+    return 1;
+  }
+
   function effortToZoneBadge(e) {
     if (e >= 90) return 'b-red';
     if (e >= 80) return 'b-orange';
@@ -640,20 +648,43 @@
       const prev = i > 0 ? intervals[i - 1] : null;
       const isNew = !prev || prev.block !== iv.block || prev.label !== iv.label;
       if (isNew) {
-        _planSegments.push({ label: iv.label, effort: iv.effort, duration: iv.duration, totalReps: iv.totalReps || 1 });
+        _planSegments.push({ label: iv.label, effort: iv.effort, duration: iv.duration, totalReps: iv.totalReps || 1, block: iv.block ?? 0 });
       }
       _intervalToSegRow.push(_planSegments.length - 1);
     });
+
+    // Group segments by block for dividers
+    const blockGroups = [];
+    let lastBlock = -1;
+    _planSegments.forEach((seg, i) => {
+      if (seg.block !== lastBlock) { blockGroups.push([]); lastBlock = seg.block; }
+      blockGroups[blockGroups.length - 1].push({ ...seg, segIndex: i });
+    });
+
     const el = document.getElementById('seg-plan');
     if (!el) return;
-    el.innerHTML = _planSegments.map((seg, i) => {
-      const durLabel = seg.totalReps > 1 ? `${fmtDur(seg.duration)} ×${seg.totalReps}` : fmtDur(seg.duration);
-      return `<div class="seg-row" id="segrow-${i}">
-        <div class="seg-n">${i + 1}</div>
-        <div class="seg-nm">${seg.label}</div>
-        <div class="seg-dt">${durLabel}</div>
-      </div>`;
-    }).join('');
+    const parts = [];
+    blockGroups.forEach((group, bi) => {
+      if (bi > 0) parts.push('<div class="seg-divider"></div>');
+      group.forEach(seg => {
+        const zn = effortToZoneNum(seg.effort);
+        const badge = effortToZoneBadge(seg.effort);
+        const zoneLabel = effortToZone(seg.effort);
+        const durLabel = seg.totalReps > 1 ? `${fmtDur(seg.duration)} ×${seg.totalReps}` : fmtDur(seg.duration);
+        parts.push(`<div class="seg-row" id="segrow-${seg.segIndex}">
+          <div class="seg-collapsed">
+            <div class="seg-n">${seg.segIndex + 1}</div>
+            <div class="seg-nm">${seg.label}</div>
+            <div class="zone-dot z${zn}"></div>
+          </div>
+          <div class="seg-expanded">
+            <span class="badge ${badge}">${zoneLabel}</span>
+            <span class="badge b-neutral">${durLabel}</span>
+          </div>
+        </div>`);
+      });
+    });
+    el.innerHTML = parts.join('');
   }
 
   function updateSegmentPlan(intervalIdx) {
