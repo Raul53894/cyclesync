@@ -78,6 +78,14 @@
     <div id="state-live" style="display:none;">
       <div class="inner" style="padding-bottom:8px;">
 
+        <!-- Host controls (role=host only) — above timer -->
+        <div id="host-controls" style="display:none;width:100%;max-width:340px;margin-bottom:16px;padding-bottom:16px;border-bottom:0.5px solid var(--border);">
+          <div class="controls-row" style="padding-top:0;border-top:none;">
+            <button id="pause-btn" class="btn btn-warning" onclick="togglePause()">Pause</button>
+            <button class="btn btn-danger" onclick="endWorkout()">End Workout</button>
+          </div>
+        </div>
+
         <!-- Large SVG timer ring -->
         <div class="timer-large">
           <svg viewBox="0 0 220 220" width="220" height="220">
@@ -93,7 +101,16 @@
 
         <!-- Interval info -->
         <div class="iv-name" id="iv-name">–</div>
-        <div class="iv-badges" id="iv-badges" style="margin-bottom:20px;"></div>
+        <div class="iv-badges" id="iv-badges" style="margin-bottom:12px;"></div>
+
+        <!-- Emote bar — below timer -->
+        <div class="emote-bar" style="margin-bottom:20px;">
+          <button class="emote-btn" onclick="sendEmote('👍')">👍</button>
+          <button class="emote-btn" onclick="sendEmote('🥵')">🥵</button>
+          <button class="emote-btn" onclick="sendEmote('🤘')">🤘</button>
+          <button class="emote-btn" onclick="sendEmote('🙌')">🙌</button>
+          <button class="emote-btn" onclick="sendEmote('😝')">😝</button>
+        </div>
 
         <!-- Session progress -->
         <div class="prog-wrap" style="width:100%;max-width:340px;margin-bottom:20px;">
@@ -118,37 +135,20 @@
         </div>
 
         <!-- Pip map -->
-        <div class="pip-row" id="pip-row" style="margin-bottom:20px;max-width:340px;"></div>
-
-        <!-- Segment plan -->
-        <div style="width:100%;max-width:340px;margin-bottom:20px;">
-          <div class="section-label" style="margin-bottom:8px;">Segment Plan</div>
-          <div id="seg-plan" class="seg-plan"></div>
-        </div>
-
-        <!-- Emote bar -->
-        <div class="emote-bar" style="margin-bottom:20px;">
-          <button class="emote-btn" onclick="sendEmote('👍')">👍</button>
-          <button class="emote-btn" onclick="sendEmote('🥵')">🥵</button>
-          <button class="emote-btn" onclick="sendEmote('🤘')">🤘</button>
-          <button class="emote-btn" onclick="sendEmote('🙌')">🙌</button>
-          <button class="emote-btn" onclick="sendEmote('😝')">😝</button>
-        </div>
-
-        <!-- Host controls (role=host only) -->
-        <div id="host-controls" style="display:none;width:100%;max-width:340px;margin-bottom:20px;">
-          <div class="controls-row">
-            <button id="pause-btn" class="btn btn-warning" onclick="togglePause()">Pause</button>
-            <button class="btn btn-danger" onclick="endWorkout()">End Workout</button>
-          </div>
-        </div>
+        <div class="pip-row" id="pip-row" style="margin-bottom:8px;max-width:340px;"></div>
 
       </div>
 
       <!-- Friends list -->
-      <div style="padding:0 20px 32px;">
+      <div style="padding:0 20px 16px;">
         <div class="section-label" style="margin-bottom:12px;">Friends</div>
         <div class="friends-list" id="friends-list"></div>
+      </div>
+
+      <!-- Segment plan — bottom of screen -->
+      <div style="padding:0 20px 32px;">
+        <div class="section-label" style="margin-bottom:8px;">Segment Plan</div>
+        <div id="seg-plan" class="seg-plan" style="padding:0;margin-bottom:0;"></div>
       </div>
     </div>
 
@@ -430,7 +430,18 @@
       if (role === 'host') document.getElementById('copy-log-btn').style.display = '';
     }
 
-    if (data.type === 'emote') { showFloatingEmoji(data.emoji); }
+    if (data.type === 'emote') {
+      showFloatingEmoji(data.emoji);
+      if (data.name) {
+        const el = document.getElementById('femote-' + encodeURIComponent(data.name));
+        if (el) {
+          el.textContent = data.emoji;
+          el.classList.remove('pop');
+          void el.offsetWidth;
+          el.classList.add('pop');
+        }
+      }
+    }
 
     if (data.type === 'error') {
       shouldReconnect = false;

@@ -671,6 +671,7 @@ html, body {
   justify-content: center;
   flex-direction: column;
   gap: 12px;
+  pointer-events: none;
 }
 
 .paused-overlay.show { display: flex; }

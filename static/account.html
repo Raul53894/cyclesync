@@ -57,7 +57,7 @@
   <div class="topbar">
     <button class="btn btn-ghost btn-sm" onclick="window.location.href='/'">← Home</button>
     <span class="brand">SYNCD<span class="brand-dot">.</span></span>
-    <span style="font-size:12px;color:var(--text-muted);" id="user-label"></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sign out</button>
   </div>
 
   <!-- Tab bar -->
@@ -129,7 +129,6 @@
     _token = session.access_token;
     _user = session.user;
     const name = _user.user_metadata?.full_name || _user.email.split('@')[0];
-    document.getElementById('user-label').textContent = name;
     document.getElementById('settings-name').value = name;
     document.getElementById('settings-email').value = _user.email;
     loadHistory();
@@ -188,11 +187,11 @@
       const card = document.createElement('div');
       card.className = 'session-card';
       card.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
-          <span style="font-size:14px;font-weight:600;color:var(--text);">${s.name || 'Untitled Session'}</span>
-          ${participants.length ? `<span class="badge b-neutral">${participants.length} rider${participants.length !== 1 ? 's' : ''}</span>` : ''}
+        <div class="session-card-header">
+          <span style="font-size:14px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name || 'Untitled Session'}</span>
+          ${participants.length ? `<span class="badge b-neutral" style="flex-shrink:0;margin-left:8px;">${participants.length} rider${participants.length !== 1 ? 's' : ''}</span>` : ''}
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div class="session-card-body">
           ${chip(fmtDate(s.started_at || s.created_at))}
           ${s.total_time_seconds ? chip(fmtDuration(s.total_time_seconds)) : ''}
         </div>`;
@@ -303,11 +302,11 @@
       const card = document.createElement('div');
       card.className = 'session-card';
       card.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
-          <span style="font-size:14px;font-weight:600;color:var(--text);">${w.name}</span>
-          <span class="badge b-neutral">${blocks.length} block${blocks.length !== 1 ? 's' : ''}</span>
+        <div class="session-card-header">
+          <span style="font-size:14px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${w.name}</span>
+          <span class="badge b-neutral" style="flex-shrink:0;margin-left:8px;">${blocks.length} block${blocks.length !== 1 ? 's' : ''}</span>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div class="session-card-body">
           ${chip(fmtDuration(w.total_duration_seconds))}
           ${chip(fmtDate(w.created_at))}
         </div>`;

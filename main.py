@@ -231,10 +231,11 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
     # Notify all clients of updated participant list
     await broadcast_participants(session)
 
+    # Always send workout_ready if intervals are set (catches host redirect during countdown too)
+    if session.get("all_intervals"):
+        await websocket.send_text(json.dumps({"type": "workout_ready", "intervals": session["all_intervals"], "presetName": session.get("preset_name", "")}))
     # If a workout is already running, catch this client up immediately
     if session.get("started") and session.get("current_interval"):
-        if session.get("all_intervals"):
-            await websocket.send_text(json.dumps({"type": "workout_ready", "intervals": session["all_intervals"], "presetName": session.get("preset_name", "")}))
         await websocket.send_text(json.dumps(session["current_interval"]))
         if session.get("last_tick"):
             await websocket.send_text(json.dumps(session["last_tick"]))
@@ -287,7 +288,8 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
             elif data["type"] == "emote":
                 emoji = data.get("emoji", "")
                 if emoji in {"👍", "🥵", "🤘", "🙌", "😝"}:
-                    await broadcast(session, {"type": "emote", "emoji": emoji})
+                    sender = session["names"].get(ws_id)
+                    await broadcast(session, {"type": "emote", "emoji": emoji, "name": sender})
 
             # Host skips to next interval
             elif data["type"] == "skip_to_next":
