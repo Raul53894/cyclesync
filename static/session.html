@@ -120,6 +120,12 @@
         <!-- Pip map -->
         <div class="pip-row" id="pip-row" style="margin-bottom:20px;max-width:340px;"></div>
 
+        <!-- Segment plan -->
+        <div style="width:100%;max-width:340px;margin-bottom:20px;">
+          <div class="section-label" style="margin-bottom:8px;">Segment Plan</div>
+          <div id="seg-plan" class="seg-plan"></div>
+        </div>
+
         <!-- Emote bar -->
         <div class="emote-bar" style="margin-bottom:20px;">
           <button class="emote-btn" onclick="sendEmote('👍')">👍</button>
@@ -192,6 +198,7 @@
   let _totalIntervals = 0, _currentIndex = 0;
   let _intervalsData = [];
   let _sessionTotal = 0, _sessionElapsed = 0, _completedDuration = 0;
+  let _planSegments = [], _intervalToSegRow = [];
 
   // Init topbar code badge
   document.getElementById('si-code').textContent = code;
@@ -302,6 +309,8 @@
 
     if (data.type === 'workout_ready') {
       presetName = data.presetName || '';
+      _intervalsData = data.intervals || [];
+      _sessionTotal = _intervalsData.reduce((s, iv) => s + iv.duration, 0);
     }
 
     if (data.type === 'countdown') {
@@ -323,13 +332,16 @@
 
       if (data.index === 0) {
         sessionStartTime = Date.now();
-        _intervalsData = data.allIntervals || [];
-        _sessionTotal = _intervalsData.reduce((s, iv) => s + iv.duration, 0);
         _sessionElapsed = 0;
         _completedDuration = 0;
+      }
+      if (role === 'host') document.getElementById('host-controls').style.display = '';
+      if (document.getElementById('pip-row').children.length === 0) {
         renderPipMap(data.total);
-        if (role === 'host') document.getElementById('host-controls').style.display = '';
         document.getElementById('si-session-name').textContent = sessionName || 'Session Info';
+      }
+      if (_planSegments.length === 0 && _intervalsData.length > 0) {
+        renderSegmentPlan(_intervalsData);
       }
 
       _totalIntervals = data.total;
@@ -355,23 +367,25 @@
       // Badges
       const zoneLabel = effortToZone(data.effort);
       document.getElementById('iv-badges').innerHTML = `
-        <span class="badge b-orange">${zoneLabel}</span>
+        <span class="badge ${effortToZoneBadge(data.effort)}">${zoneLabel}</span>
         <span class="badge b-neutral">${data.effort}% effort</span>
-        <span class="badge b-neutral">${Math.round(data.duration / 60)}m</span>
+        <span class="badge b-neutral">${fmtDur(data.duration)}</span>
       `;
 
-      // Arc color by effort
+      // Arc color by zone
       const arcEl = document.getElementById('p-arc');
       arcEl.style.stroke = data.effort >= 90 ? 'var(--red)'
-        : data.effort >= 70 ? 'var(--orange)'
+        : data.effort >= 80 ? 'var(--orange)'
         : data.effort >= 50 ? 'var(--amber)'
-        : 'var(--green)';
+        : data.effort >= 31 ? 'var(--green)'
+        : 'var(--blue)';
 
       // Upcoming strip
       updateUpcomingStrip(data.index, _intervalsData);
 
-      // Pip map active
+      // Pip map + segment plan
       updatePipMap(data.index);
+      updateSegmentPlan(data.index);
     }
 
     if (data.type === 'tick') {
@@ -383,13 +397,6 @@
 
       const fraction = data.remaining / (data.duration || currentDuration);
       document.getElementById('p-arc').style.strokeDashoffset = CIRCUMFERENCE * (1 - fraction);
-
-      // Arc color shifts near end
-      if (!isPaused) {
-        const arc = document.getElementById('p-arc');
-        if (data.remaining <= 30) arc.style.stroke = 'var(--red)';
-        else if (data.remaining <= 60) arc.style.stroke = 'var(--amber)';
-      }
 
       // Session progress
       if (_sessionTotal > 0) {
@@ -475,18 +482,44 @@
   function updateUpcomingStrip(idx, intervals) {
     const strip = document.getElementById('upcoming-strip');
     const next = intervals[idx + 1];
-    if (!next) { strip.style.display = 'none'; return; }
+    if (!next) { strip.style.display = 'none'; strip.onclick = null; strip.style.cursor = ''; return; }
     strip.style.display = '';
     document.getElementById('us-name').textContent = next.label || '–';
-    document.getElementById('us-meta').textContent = `${next.effort}% · ${Math.round(next.duration / 60)}m`;
+    document.getElementById('us-meta').textContent = `${next.effort}% · ${fmtDur(next.duration)}`;
+    if (role === 'host') {
+      strip.style.cursor = 'pointer';
+      strip.title = 'Tap to skip to next interval';
+      strip.onclick = skipToNext;
+    }
+  }
+
+  function skipToNext() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'skip_to_next' }));
+    }
   }
 
   function effortToZone(e) {
-    if (e >= 95) return 'Zone 5';
-    if (e >= 85) return 'Zone 4';
-    if (e >= 70) return 'Zone 3';
-    if (e >= 55) return 'Zone 2';
+    if (e >= 90) return 'Zone 5';
+    if (e >= 80) return 'Zone 4';
+    if (e >= 50) return 'Zone 3';
+    if (e >= 31) return 'Zone 2';
     return 'Zone 1';
+  }
+
+  function effortToZoneBadge(e) {
+    if (e >= 90) return 'b-red';
+    if (e >= 80) return 'b-orange';
+    if (e >= 50) return 'b-amber';
+    if (e >= 31) return 'b-green';
+    return 'b-blue';
+  }
+
+  function fmtDur(s) {
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return sec > 0 ? `${m}m ${sec}s` : `${m}m`;
   }
 
   // ── Controls ───────────────────────────────────────────────────────────
@@ -586,6 +619,40 @@
         <ul class="stats-list">${listRows}</ul>
         <div class="stats-total">Total time: ${mins}m ${secs}s</div>
       </div>`;
+  }
+
+  // ── Segment plan ──────────────────────────────────────────────────────
+  function renderSegmentPlan(intervals) {
+    _planSegments = [];
+    _intervalToSegRow = [];
+    intervals.forEach((iv, i) => {
+      const prev = i > 0 ? intervals[i - 1] : null;
+      const isNew = !prev || prev.block !== iv.block || prev.label !== iv.label;
+      if (isNew) {
+        _planSegments.push({ label: iv.label, effort: iv.effort, duration: iv.duration, totalReps: iv.totalReps || 1 });
+      }
+      _intervalToSegRow.push(_planSegments.length - 1);
+    });
+    const el = document.getElementById('seg-plan');
+    if (!el) return;
+    el.innerHTML = _planSegments.map((seg, i) => {
+      const durLabel = seg.totalReps > 1 ? `${fmtDur(seg.duration)} ×${seg.totalReps}` : fmtDur(seg.duration);
+      return `<div class="seg-row" id="segrow-${i}">
+        <div class="seg-n">${i + 1}</div>
+        <div class="seg-nm">${seg.label}</div>
+        <div class="seg-dt">${durLabel}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function updateSegmentPlan(intervalIdx) {
+    const segRow = _intervalToSegRow[intervalIdx];
+    if (segRow === undefined) return;
+    document.querySelectorAll('#seg-plan .seg-row').forEach((el, i) => {
+      el.classList.remove('active-seg', 'done-seg');
+      if (i < segRow) el.classList.add('done-seg');
+      else if (i === segRow) el.classList.add('active-seg');
+    });
   }
 
   // ── Session log ────────────────────────────────────────────────────────

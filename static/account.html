@@ -24,7 +24,7 @@
 
       <div id="ss-graph-wrap" style="margin-bottom:16px;">
         <div class="section-label" style="margin-bottom:8px;">Effort Over Time</div>
-        <div id="ss-effort-bars" style="display:flex;height:40px;border-radius:var(--r-sm);overflow:hidden;gap:1px;"></div>
+        <div id="ss-effort-bars"></div>
       </div>
 
       <div id="ss-blocks"></div>
@@ -243,10 +243,22 @@
         (b.intervals || []).forEach(iv => expanded.push(iv));
       }
     });
-    document.getElementById('ss-effort-bars').innerHTML = expanded.map(iv => {
-      const color = effortColor(iv.effort_percent || 0);
-      return `<div style="flex:${iv.duration_seconds || 1};background:${color};height:100%;cursor:default;" title="${iv.label} — ${iv.effort_percent}%"></div>`;
-    }).join('');
+    const totalDur = expanded.reduce((s, iv) => s + (iv.duration_seconds || 1), 0);
+    if (!totalDur) return;
+    const W = 360, H = 64, GAP = 2;
+    let x = 0;
+    const rects = expanded.map(iv => {
+      const dur = iv.duration_seconds || 1;
+      const eff = iv.effort_percent || 0;
+      const w = Math.max(2, (dur / totalDur) * W - GAP);
+      const barH = Math.max(4, (eff / 100) * H);
+      const hue = Math.round(120 - (eff / 100) * 120);
+      const rect = `<rect x="${x.toFixed(1)}" y="${(H - barH).toFixed(1)}" width="${w.toFixed(1)}" height="${barH.toFixed(1)}" rx="3" fill="hsl(${hue},85%,50%)"><title>${iv.label} — ${eff}%</title></rect>`;
+      x += w + GAP;
+      return rect;
+    });
+    document.getElementById('ss-effort-bars').innerHTML =
+      `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:4px 0;">${rects.join('')}</svg>`;
   }
 
   function renderBlockBreakdown(blocks) {

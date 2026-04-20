@@ -192,6 +192,8 @@ async def create_session(request: Request):
         "pause_event": None,    # asyncio.Event — set=running, clear=paused
         "block_event": None,    # asyncio.Event — set when host continues to next block
         "ended": False,
+        "all_intervals": [],
+        "skip_requested": False,
         "current_interval": None,  # last interval_start payload, for late-joining clients
         "last_tick": None,         # last tick payload, for late-joining clients
         "started_at": None,
@@ -231,6 +233,8 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
 
     # If a workout is already running, catch this client up immediately
     if session.get("started") and session.get("current_interval"):
+        if session.get("all_intervals"):
+            await websocket.send_text(json.dumps({"type": "workout_ready", "intervals": session["all_intervals"], "presetName": session.get("preset_name", "")}))
         await websocket.send_text(json.dumps(session["current_interval"]))
         if session.get("last_tick"):
             await websocket.send_text(json.dumps(session["last_tick"]))
@@ -244,6 +248,7 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
             # Host sends workout definition
             if data["type"] == "set_workout":
                 session["workout"] = data["intervals"]
+                session["all_intervals"] = data["intervals"]
                 session["preset_name"] = data.get("presetName", "")
                 await broadcast(session, {"type": "workout_ready", "intervals": data["intervals"], "presetName": session["preset_name"]})
 
@@ -283,6 +288,13 @@ async def websocket_endpoint(websocket: WebSocket, code: str, name: str, role: s
                 emoji = data.get("emoji", "")
                 if emoji in {"👍", "🥵", "🤘", "🙌", "😝"}:
                     await broadcast(session, {"type": "emote", "emoji": emoji})
+
+            # Host skips to next interval
+            elif data["type"] == "skip_to_next":
+                if role == "host":
+                    session["skip_requested"] = True
+                    if session.get("pause_event"):
+                        session["pause_event"].set()
 
             # Host ends the workout early
             elif data["type"] == "end":
@@ -421,6 +433,7 @@ async def run_workout(code, session):
                 return
 
             duration = iv["duration"]
+            session["skip_requested"] = False
             interval_msg = {
                 "type": "interval_start",
                 "index": global_idx,
@@ -439,9 +452,13 @@ async def run_workout(code, session):
             for remaining in range(duration, 0, -1):
                 if session.get("ended"):
                     return
+                if session.get("skip_requested"):
+                    break
                 await session["pause_event"].wait()
                 if session.get("ended"):
                     return
+                if session.get("skip_requested"):
+                    break
                 tick_msg = {"type": "tick", "remaining": remaining, "duration": duration, "ts": int(time.time() * 1000)}
                 session["last_tick"] = tick_msg
                 await broadcast(session, tick_msg)

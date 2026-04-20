@@ -455,6 +455,7 @@ html, body {
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: 11px;
+  transition: opacity 0.2s, border-color 0.2s, background 0.2s;
 }
 
 .seg-row.active-seg {
@@ -465,6 +466,7 @@ html, body {
 .seg-row.done-seg { opacity: 0.35; }
 
 .seg-n  { font-size: 11px; color: var(--text-faint); font-weight: 600; min-width: 14px; }
+.seg-row.active-seg .seg-n { color: var(--green); }
 .seg-nm { font-size: 13px; font-weight: 600; flex: 1; letter-spacing: -0.1px; }
 .seg-dt { font-size: 11px; color: var(--text-muted); }
 
@@ -1373,6 +1375,13 @@ hr {
 .text-green { color: var(--green); }
 .text-muted { color: var(--text-muted); }
 .text-faint { color: var(--text-faint); }
+
+/* ─────────────────────────────────────────
+   TIMER ARC SMOOTH ANIMATION
+───────────────────────────────────────── */
+#p-arc {
+  transition: stroke-dashoffset 1.05s linear;
+}
 
 /* ─────────────────────────────────────────
    ANIMATIONS
